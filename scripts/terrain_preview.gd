@@ -3,6 +3,7 @@ extends Node3D
 const CastleModels = preload("res://scripts/castle_models.gd")
 const SiegeRoute = preload("res://scripts/siege_route.gd")
 const CastleAnchorDebug = preload("res://scripts/castle_anchor_debug.gd")
+const TerrainSurface = preload("res://scripts/terrain_surface.gd")
 
 @onready var terrain_root: Node3D = $BratislavaRealTerrain
 @onready var camera: Camera3D = $Camera3D
@@ -40,7 +41,12 @@ func _ready() -> void:
 	if DisplayServer.get_name() != "headless":
 		# Keep Bratislava Castle visible as the fixed destination/reference.
 		# Walls, gates and towers stay disabled until road/anchor placement is correct.
-		CastleModels.build_bratislava(self)
+		var surface_sampler := TerrainSurface.new(terrain_root)
+		var castle := CastleModels.build_bratislava(self)
+		# The terrain is vertically exaggerated ×1.6 for review, while the castle
+		# model was authored at the original DEM elevation. Re-anchor the castle
+		# to the DISPLAYED terrain height so it cannot be buried under the hill.
+		castle.global_position.y = surface_sampler.height_world_at(2260.8, 4704.0) + 0.6
 		var route := SiegeRoute.build(self, terrain_root)
 		CastleAnchorDebug.build(self, terrain_root, route)
 		anchor_review_active = true
