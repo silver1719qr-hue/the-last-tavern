@@ -47,17 +47,14 @@ func _ready() -> void:
 		# model was authored at the original DEM elevation. Re-anchor the castle
 		# to the DISPLAYED terrain height so it cannot be buried under the hill.
 		castle.global_position.y = surface_sampler.height_world_at(2260.8, 4704.0) + 0.6
-		var route := SiegeRoute.build(self, terrain_root)
-		CastleAnchorDebug.build(self, terrain_root, route)
-		anchor_review_active = true
+		SiegeRoute.build(self, terrain_root)
+		# Hide anchor numbers during route review; they were obscuring the road.
+		anchor_review_active = false
 		stats["castle"] = 1
 	_setup_environment()
 	_setup_landmark_labels()
 	_setup_overlay(stats)
-	if anchor_review_active:
-		set_anchor_review_view()
-	else:
-		set_oblique_view()
+	set_road_review_view()
 
 
 func _make_terrain_material() -> ShaderMaterial:
@@ -187,7 +184,7 @@ func _setup_overlay(stats: Dictionary) -> void:
 	box.add_child(title)
 
 	var status := Label.new()
-	status.text = "ROAD REVIEW: Bratislava Castle + ONE continuous route + anchors\nWalls / gates / towers are still disabled until the route is correct\n19.3 × 18.9 km | relief ×%.1f | real DEM/OSM\nTerrain: %d | water: %d | castles shown: %d" % [
+	status.text = "ROAD REVIEW: Bratislava Castle + ONE continuous route\nRoad is temporarily lifted above terrain so every segment stays visible\nWalls / gates / towers / anchor numbers are hidden\n19.3 × 18.9 km | relief ×%.1f | real DEM/OSM\nTerrain: %d | water: %d | castles shown: %d" % [
 		VERTICAL_REVIEW_SCALE, stats["terrain"], stats["water"], stats["castle"]
 	]
 	status.add_theme_font_size_override("font_size", 11)
@@ -223,6 +220,15 @@ func set_top_view() -> void:
 	distance = 22500.0
 	yaw = 0.0
 	pitch = deg_to_rad(-89.0)
+	_update_camera()
+
+
+func set_road_review_view() -> void:
+	# Whole bridge-to-castle route in one frame.
+	focus = Vector3(2520.0, 150.0, 4890.0)
+	distance = 1500.0
+	yaw = 0.0
+	pitch = deg_to_rad(-82.0)
 	_update_camera()
 
 
