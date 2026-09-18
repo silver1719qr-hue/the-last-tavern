@@ -6,7 +6,7 @@ const TerrainSurface = preload("res://scripts/terrain_surface.gd")
 # The road, debug centreline and EnemyPath3D all use the same dense sample set.
 
 const ROAD_WIDTH := 22.0
-const ROAD_OFFSET := 1.8
+const ROAD_OFFSET := 6.0
 const SAMPLE_SPACING := 5.0
 const BRIDGE_X := 2262.0
 const BRIDGE_NORTH_Z := 5005.0
@@ -30,46 +30,41 @@ static func build(parent: Node3D, terrain_root: Node3D, create_visuals: bool = t
 	# NOT use Bézier auto-handles here because the previous curve overshot and
 	# created loops / disconnected-looking road pieces.
 	var controls: Array[Vector2] = [
+		# Spawn / bridge.
 		Vector2(2262.0, 5480.0),
 		Vector2(2262.0, 5350.0),
 		Vector2(2262.0, 5005.0),
 
-		# Smooth right turn from the bridge toward the Old Town side.
-		Vector2(2340.0, 4998.0),
-		Vector2(2440.0, 4980.0),
-		Vector2(2550.0, 4945.0),
-		Vector2(2660.0, 4890.0),
-		Vector2(2760.0, 4815.0),
-		Vector2(2840.0, 4725.0),
-		Vector2(2890.0, 4635.0),
-		Vector2(2870.0, 4555.0),
+		# Right turn toward Staré Mesto.
+		Vector2(2400.0, 4990.0),
+		Vector2(2580.0, 4940.0),
+		Vector2(2760.0, 4850.0),
+		Vector2(2900.0, 4720.0),
+		Vector2(2920.0, 4580.0),
 
-		# First broad traverse behind / beside the castle.
-		Vector2(2800.0, 4495.0),
-		Vector2(2680.0, 4460.0),
-		Vector2(2530.0, 4455.0),
-		Vector2(2400.0, 4485.0),
-		Vector2(2320.0, 4545.0),
+		# Back side of Castle Hill.
+		Vector2(2840.0, 4470.0),
+		Vector2(2660.0, 4420.0),
+		Vector2(2450.0, 4430.0),
+		Vector2(2280.0, 4490.0),
 
 		# Hairpin 1.
-		Vector2(2300.0, 4605.0),
-		Vector2(2350.0, 4655.0),
-		Vector2(2470.0, 4680.0),
-		Vector2(2600.0, 4670.0),
-		Vector2(2710.0, 4635.0),
+		Vector2(2180.0, 4580.0),
+		Vector2(2200.0, 4650.0),
+		Vector2(2340.0, 4690.0),
+		Vector2(2520.0, 4680.0),
+		Vector2(2660.0, 4630.0),
 
-		# Hairpin 2.
-		Vector2(2770.0, 4665.0),
-		Vector2(2750.0, 4715.0),
-		Vector2(2650.0, 4745.0),
-		Vector2(2500.0, 4750.0),
-		Vector2(2380.0, 4740.0),
-
-		# Final approach to the future gate.
-		Vector2(2310.0, 4760.0),
-		Vector2(2260.0, 4790.0)
+		# Hairpin 2 and final approach.
+		Vector2(2740.0, 4675.0),
+		Vector2(2710.0, 4740.0),
+		Vector2(2580.0, 4790.0),
+		Vector2(2420.0, 4800.0),
+		Vector2(2300.0, 4785.0),
+		Vector2(2260.0, 4760.0)
 	]
-	var road_points := _sample_polyline_on_surface(controls, sampler, SAMPLE_SPACING)
+	var smooth_controls := _chaikin_smooth(controls, 2)
+	var road_points := _sample_polyline_on_surface(smooth_controls, sampler, SAMPLE_SPACING)
 	var path := _make_navigation_path(road_points)
 	root.add_child(path)
 
@@ -82,7 +77,7 @@ static func build(parent: Node3D, terrain_root: Node3D, create_visuals: bool = t
 		var debug_points: Array[Vector3] = []
 		for point in road_points:
 			debug_points.append(point + Vector3.UP * 0.28)
-		root.add_child(_build_terrain_ribbon("DebugCenterLine", debug_points, 2.4, ROAD_OFFSET + 0.55, sampler, debug_material))
+		root.add_child(_build_terrain_ribbon("DebugCenterLine", debug_points, 2.4, ROAD_OFFSET + 0.8, sampler, debug_material))
 		root.add_child(_build_direction_arrows(road_points, sampler, arrow_material))
 		_add_endpoint_marker(root, "SpawnDebugMarker", road_points[0], "SPAWN", sampler, marker_material, Color("#ffb233"))
 
@@ -105,6 +100,23 @@ static func build(parent: Node3D, terrain_root: Node3D, create_visuals: bool = t
 	root.set_meta("road_vertex_count", (road_points.size() - 1) * 6)
 	root.set_meta("max_sample_gap", _max_gap(road_points))
 	return root
+
+
+static func _chaikin_smooth(points: Array[Vector2], iterations: int) -> Array[Vector2]:
+	var result := points.duplicate()
+	for _iteration in range(iterations):
+		if result.size() < 3:
+			break
+		var next: Array[Vector2] = []
+		next.append(result[0])
+		for i in range(result.size() - 1):
+			var a := result[i]
+			var b := result[i + 1]
+			next.append(a.lerp(b, 0.25))
+			next.append(a.lerp(b, 0.75))
+		next.append(result[-1])
+		result = next
+	return result
 
 
 static func _sample_polyline_on_surface(controls: Array[Vector2], sampler: TerrainSurface, spacing: float) -> Array[Vector3]:
