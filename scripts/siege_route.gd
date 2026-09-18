@@ -202,7 +202,7 @@ static func _build_terrain_ribbon(object_name: String, centers: Array[Vector3], 
 	for _pass in range(3):
 		var next := heights.duplicate()
 		for i in range(1, heights.size() - 1):
-			var smoothed := (heights[i - 1] + heights[i] * 2.0 + heights[i + 1]) * 0.25
+			var smoothed: float = (heights[i - 1] + heights[i] * 2.0 + heights[i + 1]) * 0.25
 			next[i] = maxf(raw_heights[i], smoothed)
 		heights = next
 
@@ -217,7 +217,7 @@ static func _build_terrain_ribbon(object_name: String, centers: Array[Vector3], 
 
 	for i in centers.size():
 		var side := sides[i]
-		var y := heights[i]
+		var y: float = heights[i]
 		var left := Vector3(centers[i].x + side.x, y, centers[i].z + side.z)
 		var right := Vector3(centers[i].x - side.x, y, centers[i].z - side.z)
 		left_top.append(left)
