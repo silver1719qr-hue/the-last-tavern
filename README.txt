@@ -17,6 +17,8 @@ Review controls:
 - WASD — pan across the terrain
 - T or TOP VIEW — top-down view
 - R or OBLIQUE VIEW — reset to the starting oblique view
+- 1 — close view of Bratislava Castle
+- 2 — close view of restored Devin Castle
 
 The GLB remains at real horizontal scale (about 19.3 x 18.9 km). The review
 scene uses a clearly disclosed 1.6x vertical scale so the real ridges and
