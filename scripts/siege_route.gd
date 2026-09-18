@@ -110,8 +110,8 @@ static func _chaikin_smooth(points: Array[Vector2], iterations: int) -> Array[Ve
 		var next: Array[Vector2] = []
 		next.append(result[0])
 		for i in range(result.size() - 1):
-			var a := result[i]
-			var b := result[i + 1]
+			var a: Vector2 = result[i]
+			var b: Vector2 = result[i + 1]
 			next.append(a.lerp(b, 0.25))
 			next.append(a.lerp(b, 0.75))
 		next.append(result[-1])
