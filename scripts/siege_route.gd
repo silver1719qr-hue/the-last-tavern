@@ -6,7 +6,7 @@ const TerrainSurface = preload("res://scripts/terrain_surface.gd")
 # The road, debug centreline and EnemyPath3D all use the same dense sample set.
 
 const ROAD_WIDTH := 22.0
-const ROAD_OFFSET := 0.14
+const ROAD_OFFSET := 1.8
 const SAMPLE_SPACING := 5.0
 const BRIDGE_X := 2262.0
 const BRIDGE_NORTH_Z := 5005.0
@@ -82,7 +82,7 @@ static func build(parent: Node3D, terrain_root: Node3D, create_visuals: bool = t
 		var debug_points: Array[Vector3] = []
 		for point in road_points:
 			debug_points.append(point + Vector3.UP * 0.28)
-		root.add_child(_build_terrain_ribbon("DebugCenterLine", debug_points, 2.4, ROAD_OFFSET + 0.32, sampler, debug_material))
+		root.add_child(_build_terrain_ribbon("DebugCenterLine", debug_points, 2.4, ROAD_OFFSET + 0.55, sampler, debug_material))
 		root.add_child(_build_direction_arrows(road_points, sampler, arrow_material))
 		_add_endpoint_marker(root, "SpawnDebugMarker", road_points[0], "SPAWN", sampler, marker_material, Color("#ffb233"))
 
