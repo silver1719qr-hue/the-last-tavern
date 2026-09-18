@@ -1,25 +1,23 @@
-THE LAST TAVERN 3D — stable gameplay build
+THE LAST TAVERN 3D — Bratislava terrain review
 
-Open project.godot in Godot 4 and run the project with F6/F5 or the Play button.
+Current build purpose:
+- Review the real Bratislava DEM/OSM terrain only.
+- No player, enemies, towers, procedural hills, or gameplay are active.
+- The source scene is Bratislava_Real_Terrain_Godot4.glb.
 
-Controls:
-WASD — move
-Shift — sprint
-Mouse — look
-Left mouse button — melee attack
-E — interact / build / upgrade / climb
-V — first-person / third-person camera
-C — tactical overview while standing on the command deck
-Esc — release mouse cursor
-Left click after Esc — capture the cursor and return to the game
+Visible geography:
+- Danube and Morava confluence near Devin
+- Bratislava Castle and Stare Mesto
+- Petrzalka lowland
+- Little Carpathians and Kamzik
 
-Gameplay:
-- Defend the tavern from waves approaching from three directions.
-- A warning and countdown appears before each wave.
-- Every 5th wave includes a boss.
-- The four glowing circles are tower construction sites.
-- Approach a site and press E to build a visible watchtower for 75 gold.
-- Built towers rotate toward enemies and fire visible glowing projectiles.
-- Approach a built tower and press E to upgrade it.
-- Use the ladder marker beside the tavern and press E to climb to the command deck.
-- On the command deck press C for a high tactical overview of the battlefield.
+Review controls:
+- Right mouse drag — orbit camera
+- Mouse wheel — zoom
+- WASD — pan across the terrain
+- T or TOP VIEW — top-down view
+- R or OBLIQUE VIEW — reset to the starting oblique view
+
+The GLB remains at real horizontal scale (about 19.3 x 18.9 km). The review
+scene uses a clearly disclosed 1.6x vertical scale so the real ridges and
+valleys remain readable in a whole-region overview.

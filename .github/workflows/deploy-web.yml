@@ -38,8 +38,20 @@ jobs:
           status=$?
           cat import.log
           [ $status -eq 0 ]
-          if grep -E "SCRIPT ERROR|Parse Error|Failed to load script" import.log; then
+          if grep -Ei "SCRIPT ERROR|Parse Error|Failed to load script|GLB.*(error|warning)|glTF.*(error|warning)|ERROR:.*(glb|gltf|import)|WARNING:.*(LOD|normal|glb|gltf|import)" import.log; then
             echo "Godot script validation failed."
+            exit 1
+          fi
+
+      - name: Validate real terrain geometry
+        run: |
+          godot --headless --path . --script scripts/validate_terrain.gd > terrain-validation.log 2>&1
+          status=$?
+          cat terrain-validation.log
+          [ $status -eq 0 ]
+          grep -F "TERRAIN_VALIDATION_OK" terrain-validation.log
+          if grep -Ei "SCRIPT ERROR|Parse Error|Failed to load script|ERROR:" terrain-validation.log; then
+            echo "Terrain geometry validation contains errors."
             exit 1
           fi
 
@@ -50,7 +62,7 @@ jobs:
           status=$?
           cat export.log
           [ $status -eq 0 ]
-          if grep -E "SCRIPT ERROR|Parse Error|Failed to load script" export.log; then
+          if grep -Ei "SCRIPT ERROR|Parse Error|Failed to load script|GLB.*(error|warning)|glTF.*(error|warning)|ERROR:.*(glb|gltf|import)|WARNING:.*(LOD|normal|glb|gltf|import)" export.log; then
             echo "Godot export contains script errors."
             exit 1
           fi
