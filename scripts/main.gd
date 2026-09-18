@@ -61,7 +61,7 @@ func mat(color: Color, roughness: float = 0.9, metallic: float = 0.0) -> Standar
 	material.metallic = metallic
 	return material
 
-func box_obj(name: String, pos: Vector3, size: Vector3, color: Color, parent: Node = self, collision: bool = true) -> Node3D:
+func box_obj(name: String, pos: Vector3, size: Vector3, color: Color, parent: Node = self, collision: bool = true, rotation_deg: Vector3 = Vector3.ZERO) -> Node3D:
 	var body: Node3D
 	if collision:
 		body = StaticBody3D.new()
@@ -70,6 +70,7 @@ func box_obj(name: String, pos: Vector3, size: Vector3, color: Color, parent: No
 	body.name = name
 	parent.add_child(body)
 	body.position = pos
+	body.rotation_degrees = rotation_deg
 
 	var mesh := MeshInstance3D.new()
 	var box := BoxMesh.new()
