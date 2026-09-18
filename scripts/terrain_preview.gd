@@ -3,101 +3,106 @@ extends Node3D
 @onready var terrain_root: Node3D = $BratislavaRealTerrain
 @onready var camera: Camera3D = $Camera3D
 
-var focus := Vector3(0.0, 5.0, 0.0)
-var distance: float = 285.0
-var yaw: float = deg_to_rad(-18.0)
-var pitch: float = deg_to_rad(-55.0)
-var pan_speed: float = 95.0
+var focus := Vector3(0.0, 7.0, 0.0)
+var distance: float = 300.0
+var yaw: float = deg_to_rad(-22.0)
+var pitch: float = deg_to_rad(-52.0)
+var pan_speed: float = 90.0
 var rotate_speed: float = 0.004
 var zoom_step: float = 0.88
-var dragging: bool = false
-var relief_mode := 3
+var dragging := false
+
+var terrain_mat: StandardMaterial3D
+var water_mat: StandardMaterial3D
+var castle_mat: StandardMaterial3D
+var marker_mat: StandardMaterial3D
 
 func _ready() -> void:
-	# The GLB contains its own Blender Sun exported with extreme intensity (~1570).
-	# Disable imported lights/cameras so they cannot blow out the terrain preview.
-	for child in terrain_root.find_children("*", "Light3D", true, false):
-		if child is Light3D:
-			child.queue_free()
-	var imported_camera := terrain_root.find_child("Overview_Camera", true, false)
-	if imported_camera is Camera3D:
-		imported_camera.current = false
+	terrain_mat = _unlit(Color("#4f7f35"))
+	water_mat = _unlit(Color("#1769aa"))
+	castle_mat = _unlit(Color("#c8a766"))
+	marker_mat = _unlit(Color("#ff7a18"))
 
-	for node_name in [
-		"Terrain-col",
-		"Kamzik_439m",
-		"Old_Town_Centre",
-		"Petrzalka_Lowland",
-		"Morava_Danube_Confluence"
-	]:
-		var n := terrain_root.find_child(node_name, true, false)
-		if n is VisualInstance3D:
-			n.visible = false
+	# Remove/disable EVERYTHING imported that can affect the view except mesh geometry.
+	for n in terrain_root.find_children("*", "", true, false):
+		if n is Light3D:
+			n.queue_free()
+		elif n is Camera3D:
+			n.current = false
 
-	_apply_review_materials()
+	var stats := {"mesh": 0, "hidden": 0, "terrain": 0, "water": 0, "castle": 0, "other": 0}
+	_force_materials_recursive(terrain_root, "", stats)
+
 	_setup_environment()
-	_setup_overlay()
+	_setup_overlay(stats)
 	_update_camera()
 
-func make_material(color: Color, roughness: float = 0.95, metallic: float = 0.0) -> StandardMaterial3D:
+func _unlit(color: Color) -> StandardMaterial3D:
 	var m := StandardMaterial3D.new()
 	m.albedo_color = color
-	m.roughness = roughness
-	m.metallic = metallic
 	m.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	m.cull_mode = BaseMaterial3D.CULL_DISABLED
+	m.transparency = BaseMaterial3D.TRANSPARENCY_DISABLED
 	return m
 
-func _set_material(node_name: String, material: StandardMaterial3D) -> void:
-	var node := terrain_root.find_child(node_name, true, false)
-	if node is MeshInstance3D:
-		node.material_override = material
+func _force_materials_recursive(node: Node, inherited_name: String, stats: Dictionary) -> void:
+	var path_name := (inherited_name + "/" + str(node.name)).to_lower()
 
-func _apply_review_materials() -> void:
-	# Temporary UNLIT diagnostic colors: this bypasses every imported light/material issue
-	# and shows the real mesh geometry/rivers directly.
-	_set_material("Terrain", make_material(Color(0.24, 0.42, 0.20)))
-	_set_material("Danube_OSM", make_material(Color(0.10, 0.36, 0.62), 0.28, 0.05))
-	_set_material("Morava_OSM", make_material(Color(0.14, 0.46, 0.68), 0.28, 0.05))
-	_set_material("Bratislava_Castle_OSM_Placeholder", make_material(Color(0.78, 0.70, 0.52)))
-	_set_material("Devin_Castle_OSM_Placeholder", make_material(Color(0.64, 0.57, 0.45)))
+	if node is MeshInstance3D:
+		stats["mesh"] += 1
+		if "terrain-col" in path_name or "collision" in path_name:
+			node.visible = false
+			stats["hidden"] += 1
+		elif "danube" in path_name or "morava" in path_name or "water" in path_name:
+			node.visible = true
+			node.material_override = water_mat
+			stats["water"] += 1
+		elif "castle" in path_name or "devin" in path_name:
+			node.visible = true
+			node.material_override = castle_mat
+			stats["castle"] += 1
+		elif "terrain" in path_name:
+			node.visible = true
+			node.material_override = terrain_mat
+			stats["terrain"] += 1
+		else:
+			# Hide helper spheres/markers so they cannot cover the map.
+			if "kamzik" in path_name or "centre" in path_name or "lowland" in path_name or "confluence" in path_name:
+				node.visible = false
+				stats["hidden"] += 1
+			else:
+				node.visible = true
+				node.material_override = marker_mat
+				stats["other"] += 1
+
+	for child in node.get_children():
+		_force_materials_recursive(child, path_name, stats)
 
 func _setup_environment() -> void:
-	var env_node := $WorldEnvironment
 	var env := Environment.new()
 	env.background_mode = Environment.BG_COLOR
-	env.background_color = Color(0.56, 0.68, 0.78)
-	env.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
-	env.ambient_light_color = Color(0.72, 0.78, 0.84)
-	env.ambient_light_energy = 0.45
-	env.tonemap_mode = Environment.TONE_MAPPER_FILMIC
-	env_node.environment = env
+	env.background_color = Color("#91a7bb")
+	env.ambient_light_source = Environment.AMBIENT_SOURCE_DISABLED
+	env.tonemap_mode = Environment.TONE_MAPPER_LINEAR
+	$WorldEnvironment.environment = env
 
-func _setup_overlay() -> void:
+func _setup_overlay(stats: Dictionary) -> void:
 	var layer := CanvasLayer.new()
 	add_child(layer)
 
 	var panel := ColorRect.new()
-	panel.color = Color(0.0, 0.0, 0.0, 0.56)
-	panel.position = Vector2(14, 14)
-	panel.size = Vector2(690, 132)
+	panel.color = Color(0.05, 0.06, 0.08, 0.92)
+	panel.position = Vector2(12, 12)
+	panel.size = Vector2(790, 145)
 	layer.add_child(panel)
 
 	var label := Label.new()
-	label.name = "ReviewHelp"
-	label.position = Vector2(28, 24)
-	label.text = "BRATISLAVA REAL TERRAIN REVIEW\nWheel — zoom | Right drag — rotate | WASD — pan | T — top | R — oblique\n1 — true elevation scale | 2 — relief x3 (current, easier to inspect)"
+	label.position = Vector2(26, 24)
+	label.text = "TERRAIN DEBUG BUILD 5 — REAL GLB ONLY\nGREEN = terrain | BLUE = Danube/Morava | TAN = castle placeholders\nMeshes: %d  terrain:%d  water:%d  castle:%d  hidden:%d\nWheel zoom | Right-drag rotate | WASD pan | T top | R oblique" % [
+		stats["mesh"], stats["terrain"], stats["water"], stats["castle"], stats["hidden"]
+	]
 	label.add_theme_font_size_override("font_size", 18)
 	layer.add_child(label)
-
-func _set_relief(multiplier: int) -> void:
-	relief_mode = multiplier
-	terrain_root.scale = Vector3(0.02, 0.02 * float(multiplier), 0.02)
-	var label := get_node_or_null("ReviewHelp")
-	if label == null:
-		label = find_child("ReviewHelp", true, false)
-	if label is Label:
-		var mode_text := "true elevation scale" if multiplier == 1 else "relief x3 for inspection"
-		label.text = "BRATISLAVA REAL TERRAIN REVIEW\nWheel — zoom | Right drag — rotate | WASD — pan | T — top | R — oblique\n1 — true elevation scale | 2 — relief x3 | CURRENT: " + mode_text
 
 func _update_camera() -> void:
 	var cp := cos(pitch)
@@ -114,16 +119,16 @@ func _unhandled_input(event: InputEvent) -> void:
 		if event.button_index == MOUSE_BUTTON_RIGHT:
 			dragging = event.pressed
 		elif event.button_index == MOUSE_BUTTON_WHEEL_UP and event.pressed:
-			distance = maxf(45.0, distance * zoom_step)
+			distance = maxf(40.0, distance * zoom_step)
 			_update_camera()
 		elif event.button_index == MOUSE_BUTTON_WHEEL_DOWN and event.pressed:
-			distance = minf(750.0, distance / zoom_step)
+			distance = minf(800.0, distance / zoom_step)
 			_update_camera()
 
 	if event is InputEventMouseMotion and dragging:
 		yaw -= event.relative.x * rotate_speed
 		pitch -= event.relative.y * rotate_speed
-		pitch = clampf(pitch, deg_to_rad(-88.0), deg_to_rad(-18.0))
+		pitch = clampf(pitch, deg_to_rad(-88.0), deg_to_rad(-15.0))
 		_update_camera()
 
 	if event is InputEventKey and event.pressed:
@@ -131,34 +136,25 @@ func _unhandled_input(event: InputEvent) -> void:
 			yaw = 0.0
 			pitch = deg_to_rad(-88.0)
 			distance = 320.0
-			focus = Vector3(0.0, 0.0, 0.0)
+			focus = Vector3.ZERO
 			_update_camera()
 		elif event.keycode == KEY_R:
-			yaw = deg_to_rad(-18.0)
-			pitch = deg_to_rad(-55.0)
-			distance = 285.0
-			focus = Vector3(0.0, 5.0, 0.0)
+			yaw = deg_to_rad(-22.0)
+			pitch = deg_to_rad(-52.0)
+			distance = 300.0
+			focus = Vector3(0.0, 7.0, 0.0)
 			_update_camera()
-		elif event.keycode == KEY_1:
-			_set_relief(1)
-		elif event.keycode == KEY_2:
-			_set_relief(3)
 
 func _process(delta: float) -> void:
 	var forward := Vector3(-sin(yaw), 0.0, -cos(yaw))
 	var right := Vector3(cos(yaw), 0.0, -sin(yaw))
 	var move := Vector3.ZERO
 
-	if Input.is_key_pressed(KEY_W):
-		move += forward
-	if Input.is_key_pressed(KEY_S):
-		move -= forward
-	if Input.is_key_pressed(KEY_A):
-		move -= right
-	if Input.is_key_pressed(KEY_D):
-		move += right
+	if Input.is_key_pressed(KEY_W): move += forward
+	if Input.is_key_pressed(KEY_S): move -= forward
+	if Input.is_key_pressed(KEY_A): move -= right
+	if Input.is_key_pressed(KEY_D): move += right
 
 	if move.length_squared() > 0.0:
-		var speed := pan_speed * maxf(distance / 300.0, 0.25)
-		focus += move.normalized() * speed * delta
+		focus += move.normalized() * pan_speed * maxf(distance / 300.0, 0.25) * delta
 		_update_camera()
