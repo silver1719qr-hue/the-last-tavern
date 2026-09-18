@@ -5,9 +5,9 @@ const TerrainSurface = preload("res://scripts/terrain_surface.gd")
 # One continuous tower-defense route over the existing Bratislava DEM.
 # The road, debug centreline and EnemyPath3D all use the same dense sample set.
 
-const ROAD_WIDTH := 10.0
+const ROAD_WIDTH := 14.0
 const ROAD_OFFSET := 0.14
-const SAMPLE_SPACING := 6.0
+const SAMPLE_SPACING := 5.0
 const BRIDGE_X := 2262.0
 const BRIDGE_NORTH_Z := 5005.0
 const BRIDGE_SOUTH_Z := 5350.0
@@ -23,25 +23,53 @@ static func build(parent: Node3D, terrain_root: Node3D, create_visuals: bool = t
 	root.top_level = true
 	root.global_transform = Transform3D.IDENTITY
 
-	# Bridge -> right turn -> lower Castle Hill -> rear side -> five broad
-	# switchbacks -> defensive point beside Bratislava Castle.
+	# Bridge -> right turn toward Staré Mesto -> lower Castle Hill ->
+	# rear side -> broad readable switchbacks -> castle gate.
+	#
+	# IMPORTANT: these are explicit world-space waypoints. We intentionally do
+	# NOT use Bézier auto-handles here because the previous curve overshot and
+	# created loops / disconnected-looking road pieces.
 	var controls: Array[Vector2] = [
 		Vector2(2262.0, 5480.0),
 		Vector2(2262.0, 5350.0),
 		Vector2(2262.0, 5005.0),
-		Vector2(2520.0, 4990.0),
-		Vector2(2760.0, 4860.0),
-		Vector2(2830.0, 4620.0),
-		Vector2(2800.0, 4380.0),
-		Vector2(2300.0, 4350.0),
-		Vector2(2650.0, 4470.0),
-		Vector2(2150.0, 4450.0),
-		Vector2(2500.0, 4580.0),
-		Vector2(2050.0, 4600.0),
-		Vector2(2200.0, 4750.0)
+
+		# Smooth right turn from the bridge toward the Old Town side.
+		Vector2(2340.0, 4998.0),
+		Vector2(2440.0, 4980.0),
+		Vector2(2550.0, 4945.0),
+		Vector2(2660.0, 4890.0),
+		Vector2(2760.0, 4815.0),
+		Vector2(2840.0, 4725.0),
+		Vector2(2890.0, 4635.0),
+		Vector2(2870.0, 4555.0),
+
+		# First broad traverse behind / beside the castle.
+		Vector2(2800.0, 4495.0),
+		Vector2(2680.0, 4460.0),
+		Vector2(2530.0, 4455.0),
+		Vector2(2400.0, 4485.0),
+		Vector2(2320.0, 4545.0),
+
+		# Hairpin 1.
+		Vector2(2300.0, 4605.0),
+		Vector2(2350.0, 4655.0),
+		Vector2(2470.0, 4680.0),
+		Vector2(2600.0, 4670.0),
+		Vector2(2710.0, 4635.0),
+
+		# Hairpin 2.
+		Vector2(2770.0, 4665.0),
+		Vector2(2750.0, 4715.0),
+		Vector2(2650.0, 4745.0),
+		Vector2(2500.0, 4750.0),
+		Vector2(2380.0, 4740.0),
+
+		# Final approach to the future gate.
+		Vector2(2310.0, 4760.0),
+		Vector2(2260.0, 4790.0)
 	]
-	var design_curve := _make_design_curve(controls, sampler)
-	var road_points := _sample_on_surface(design_curve, sampler, SAMPLE_SPACING)
+	var road_points := _sample_polyline_on_surface(controls, sampler, SAMPLE_SPACING)
 	var path := _make_navigation_path(road_points)
 	root.add_child(path)
 
@@ -79,32 +107,21 @@ static func build(parent: Node3D, terrain_root: Node3D, create_visuals: bool = t
 	return root
 
 
-static func _make_design_curve(controls: Array[Vector2], sampler: TerrainSurface) -> Curve3D:
-	var curve := Curve3D.new()
-	curve.bake_interval = 2.0
-	for i in controls.size():
-		var current := _surface_point(controls[i], sampler, ROAD_OFFSET)
-		var previous := current if i == 0 else _surface_point(controls[i - 1], sampler, ROAD_OFFSET)
-		var next := current if i == controls.size() - 1 else _surface_point(controls[i + 1], sampler, ROAD_OFFSET)
-		var tangent := next - previous
-		tangent.y = 0.0
-		tangent = tangent.normalized()
-		var incoming := 0.0 if i == 0 else minf(current.distance_to(previous) * 0.24, 78.0)
-		var outgoing := 0.0 if i == controls.size() - 1 else minf(current.distance_to(next) * 0.24, 78.0)
-		curve.add_point(current, -tangent * incoming, tangent * outgoing)
-	return curve
-
-
-static func _sample_on_surface(curve: Curve3D, sampler: TerrainSurface, spacing: float) -> Array[Vector3]:
+static func _sample_polyline_on_surface(controls: Array[Vector2], sampler: TerrainSurface, spacing: float) -> Array[Vector3]:
 	var points: Array[Vector3] = []
-	var length := curve.get_baked_length()
-	var distance := 0.0
-	while distance < length:
-		var design_point := curve.sample_baked(distance, true)
-		points.append(_surface_point(Vector2(design_point.x, design_point.z), sampler, ROAD_OFFSET))
-		distance += spacing
-	var end := curve.sample_baked(length, true)
-	points.append(_surface_point(Vector2(end.x, end.z), sampler, ROAD_OFFSET))
+	if controls.is_empty():
+		return points
+
+	points.append(_surface_point(controls[0], sampler, ROAD_OFFSET))
+	for i in range(controls.size() - 1):
+		var a := controls[i]
+		var b := controls[i + 1]
+		var segment_length := a.distance_to(b)
+		var steps := maxi(1, ceili(segment_length / spacing))
+		for step_index in range(1, steps + 1):
+			var t := float(step_index) / float(steps)
+			var xz := a.lerp(b, t)
+			points.append(_surface_point(xz, sampler, ROAD_OFFSET))
 	return points
 
 
