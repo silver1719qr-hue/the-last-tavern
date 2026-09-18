@@ -18,7 +18,7 @@ func _ready() -> void:
 	# Disable imported lights/cameras so they cannot blow out the terrain preview.
 	for child in terrain_root.find_children("*", "Light3D", true, false):
 		if child is Light3D:
-			child.visible = false
+			child.queue_free()
 	var imported_camera := terrain_root.find_child("Overview_Camera", true, false)
 	if imported_camera is Camera3D:
 		imported_camera.current = false
@@ -44,6 +44,7 @@ func make_material(color: Color, roughness: float = 0.95, metallic: float = 0.0)
 	m.albedo_color = color
 	m.roughness = roughness
 	m.metallic = metallic
+	m.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
 	return m
 
 func _set_material(node_name: String, material: StandardMaterial3D) -> void:
@@ -52,7 +53,8 @@ func _set_material(node_name: String, material: StandardMaterial3D) -> void:
 		node.material_override = material
 
 func _apply_review_materials() -> void:
-	# Temporary diagnostic colors so the actual geometry, rivers and landmarks are readable.
+	# Temporary UNLIT diagnostic colors: this bypasses every imported light/material issue
+	# and shows the real mesh geometry/rivers directly.
 	_set_material("Terrain", make_material(Color(0.24, 0.42, 0.20)))
 	_set_material("Danube_OSM", make_material(Color(0.10, 0.36, 0.62), 0.28, 0.05))
 	_set_material("Morava_OSM", make_material(Color(0.14, 0.46, 0.68), 0.28, 0.05))
