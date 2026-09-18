@@ -32,13 +32,29 @@ jobs:
             mv /root/.local/share/godot/export_templates/4.3.stable ~/.local/share/godot/export_templates/4.3.stable
           fi
 
-      - name: Import project
-        run: godot --headless --editor --quit --path .
+      - name: Import and validate project
+        run: |
+          godot --headless --editor --quit --path . > import.log 2>&1
+          status=$?
+          cat import.log
+          [ $status -eq 0 ]
+          if grep -E "SCRIPT ERROR|Parse Error|Failed to load script" import.log; then
+            echo "Godot script validation failed."
+            exit 1
+          fi
 
-      - name: Export Web build
+      - name: Export and validate Web build
         run: |
           mkdir -p build/web
-          godot --headless --verbose --path . --export-release "Web" build/web/index.html
+          godot --headless --verbose --path . --export-release "Web" build/web/index.html > export.log 2>&1
+          status=$?
+          cat export.log
+          [ $status -eq 0 ]
+          if grep -E "SCRIPT ERROR|Parse Error|Failed to load script" export.log; then
+            echo "Godot export contains script errors."
+            exit 1
+          fi
+          test -s build/web/index.html
           touch build/web/.nojekyll
 
       - name: Configure Pages
