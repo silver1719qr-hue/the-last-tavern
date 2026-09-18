@@ -4,7 +4,7 @@ const TerrainSurface = preload("res://scripts/terrain_surface.gd")
 
 const WALL_HEIGHT := 11.0
 const WALL_THICKNESS := 5.0
-const GATE_CENTER := Vector2(2261.0, 4818.0)
+const GATE_CENTER := Vector2(2260.0, 4762.0)
 const GATE_HALF_WIDTH := 18.0
 
 
