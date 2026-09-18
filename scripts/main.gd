@@ -115,6 +115,134 @@ func cyl_obj(name: String, pos: Vector3, radius: float, height: float, color: Co
 		body.add_child(collision_shape)
 	return body
 
+
+func terrain_height(x: float, z: float) -> float:
+	# Broad natural relief. The play area is only a small part of this landscape.
+	var base: float = 0.35
+	base += sin(x * 0.028) * 1.15
+	base += cos(z * 0.021) * 0.85
+	base += sin((x + z) * 0.017) * 0.75
+	base += cos((x - z) * 0.013) * 0.55
+
+	# Bratislava-inspired castle hill: a broad shoulder, not a box.
+	var castle_dist: float = sqrt(pow(x / 58.0, 2.0) + pow((z + 7.0) / 48.0, 2.0))
+	var castle_hill: float = 8.0 * exp(-castle_dist * castle_dist * 2.25)
+	base += castle_hill
+
+	# Carve the Danube floodplain and channel around z=61.
+	var river_dist: float = abs(z - 61.0)
+	var valley: float = 6.2 * exp(-pow(river_dist / 29.0, 2.0))
+	base -= valley
+	if river_dist < 20.5:
+		base = minf(base, -1.0 - 0.25 * cos((river_dist / 20.5) * PI))
+
+	# Lower, flatter far bank where the attacking army assembles.
+	if z > 87.0:
+		base = lerpf(base, 0.25 + sin(x * 0.025) * 0.5, clampf((z - 87.0) / 34.0, 0.0, 1.0))
+
+	# Plateau around the castle so walls sit naturally on the hilltop.
+	var plateau_x: float = abs(x)
+	var plateau_z: float = abs(z + 2.0)
+	if plateau_x < 33.0 and plateau_z < 27.0:
+		var edge: float = maxf(plateau_x / 33.0, plateau_z / 27.0)
+		var blend: float = 1.0 - smoothstep(0.72, 1.0, edge)
+		base = lerpf(base, 3.25, blend)
+
+	# Side ridges frame the panorama.
+	var left_ridge: float = 9.0 * exp(-pow((x + 105.0) / 38.0, 2.0) - pow((z + 25.0) / 80.0, 2.0))
+	var right_ridge: float = 8.0 * exp(-pow((x - 110.0) / 42.0, 2.0) - pow((z + 35.0) / 85.0, 2.0))
+	base += left_ridge + right_ridge
+	return base
+
+func build_terrain() -> void:
+	var terrain_body := StaticBody3D.new()
+	terrain_body.name = "NaturalTerrain"
+	add_child(terrain_body)
+
+	var size_x: int = 280
+	var size_z: int = 250
+	var step: float = 4.0
+	var cols: int = int(float(size_x) / step) + 1
+	var rows: int = int(float(size_z) / step) + 1
+	var start_x: float = -float(size_x) * 0.5
+	var start_z: float = -88.0
+
+	var vertices := PackedVector3Array()
+	var normals := PackedVector3Array()
+	var colors := PackedColorArray()
+	var indices := PackedInt32Array()
+
+	for rz in range(rows):
+		var z: float = start_z + float(rz) * step
+		for cx in range(cols):
+			var x: float = start_x + float(cx) * step
+			var y: float = terrain_height(x, z)
+			vertices.append(Vector3(x, y, z))
+
+			var dx: float = terrain_height(x + 1.0, z) - terrain_height(x - 1.0, z)
+			var dz: float = terrain_height(x, z + 1.0) - terrain_height(x, z - 1.0)
+			normals.append(Vector3(-dx * 0.5, 1.0, -dz * 0.5).normalized())
+
+			var slope: float = clampf(1.0 - normals[normals.size() - 1].y, 0.0, 1.0)
+			var c: Color
+			if y < -0.35:
+				c = Color("52614a")
+			elif slope > 0.20:
+				c = Color("6f705f")
+			elif y > 5.0:
+				c = Color("627548")
+			else:
+				c = Color("657a4c")
+			var variation: float = 0.92 + 0.08 * sin(x * 0.09 + z * 0.06)
+			colors.append(Color(c.r * variation, c.g * variation, c.b * variation, 1.0))
+
+	for rz in range(rows - 1):
+		for cx in range(cols - 1):
+			var a: int = rz * cols + cx
+			var b: int = a + 1
+			var cidx: int = a + cols
+			var d: int = cidx + 1
+			indices.append_array(PackedInt32Array([a, cidx, b, b, cidx, d]))
+
+	var arrays := []
+	arrays.resize(Mesh.ARRAY_MAX)
+	arrays[Mesh.ARRAY_VERTEX] = vertices
+	arrays[Mesh.ARRAY_NORMAL] = normals
+	arrays[Mesh.ARRAY_COLOR] = colors
+	arrays[Mesh.ARRAY_INDEX] = indices
+
+	var terrain_mesh := ArrayMesh.new()
+	terrain_mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
+
+	var mesh_instance := MeshInstance3D.new()
+	mesh_instance.mesh = terrain_mesh
+	var terrain_material := StandardMaterial3D.new()
+	terrain_material.vertex_color_use_as_albedo = true
+	terrain_material.roughness = 1.0
+	mesh_instance.material_override = terrain_material
+	terrain_body.add_child(mesh_instance)
+
+	var collision := CollisionShape3D.new()
+	collision.shape = terrain_mesh.create_trimesh_shape()
+	terrain_body.add_child(collision)
+
+func build_river() -> void:
+	var river := MeshInstance3D.new()
+	river.name = "Danube"
+	var water_mesh := BoxMesh.new()
+	water_mesh.size = Vector3(276, 0.18, 41)
+	river.mesh = water_mesh
+	river.position = Vector3(0, -0.35, 61)
+	var water_material := StandardMaterial3D.new()
+	water_material.albedo_color = Color("3c718c")
+	water_material.roughness = 0.18
+	water_material.metallic = 0.16
+	water_material.emission_enabled = true
+	water_material.emission = Color("173d52")
+	water_material.emission_energy_multiplier = 0.18
+	river.material_override = water_material
+	add_child(river)
+
 func build_world() -> void:
 	var env := WorldEnvironment.new()
 	var environment := Environment.new()
@@ -127,7 +255,7 @@ func build_world() -> void:
 	environment.fog_enabled = true
 	environment.fog_light_color = Color("b8c5c8")
 	environment.fog_light_energy = 0.55
-	environment.fog_density = 0.004
+	environment.fog_density = 0.0065
 	env.environment = environment
 	add_child(env)
 
@@ -138,22 +266,9 @@ func build_world() -> void:
 	sun.shadow_enabled = true
 	add_child(sun)
 
-	# Lowlands and the raised historic city hill.
-	box_obj("Lowlands", Vector3(0, -1.0, 26), Vector3(220, 2, 200), Color("586b47"), self, true)
-	box_obj("CastleHill", Vector3(0, 1.5, -12), Vector3(110, 5, 84), Color("68744e"), self, true)
-
-	# The Danube.
-	var river := MeshInstance3D.new()
-	var water_mesh := BoxMesh.new()
-	water_mesh.size = Vector3(220, 0.35, 48)
-	river.mesh = water_mesh
-	river.position = Vector3(0, 0.05, 61)
-	var water_material := StandardMaterial3D.new()
-	water_material.albedo_color = Color("3f7089")
-	water_material.roughness = 0.24
-	water_material.metallic = 0.08
-	river.material_override = water_material
-	add_child(river)
+	# One continuous height-field landscape: hills, river valley and castle plateau.
+	build_terrain()
+	build_river()
 
 	# Main stone bridge: the primary invasion route.
 	box_obj("DanubeBridge", Vector3(0, 1.0, 61), Vector3(11, 1, 66), Color("8d8170"), self, true)
@@ -180,7 +295,11 @@ func build_world() -> void:
 		tent.material_override = mat(Color("5e332b"))
 		add_child(tent)
 
-	spawn_points = [Vector3(-3, 1.5, 94), Vector3(0, 1.5, 98), Vector3(3, 1.5, 94)]
+	spawn_points = [
+		Vector3(-3, terrain_height(-3, 94) + 1.0, 94),
+		Vector3(0, terrain_height(0, 98) + 1.0, 98),
+		Vector3(3, terrain_height(3, 94) + 1.0, 94)
+	]
 
 	build_tavern_and_command_deck()
 	build_palisade()
@@ -206,23 +325,14 @@ func build_world() -> void:
 	for i in range(75):
 		var angle := rng.randf_range(0, TAU)
 		var radius := rng.randf_range(48, 92)
-		var tree_pos := Vector3(cos(angle)*radius, 3.0, -8 + sin(angle)*radius*0.65)
+		var tree_x: float = cos(angle) * radius
+		var tree_z: float = -8.0 + sin(angle) * radius * 0.65
+		var tree_pos := Vector3(tree_x, terrain_height(tree_x, tree_z), tree_z)
 		if abs(tree_pos.x) < 34 and tree_pos.z > -38 and tree_pos.z < 28:
 			continue
 		if tree_pos.z > 34 and abs(tree_pos.x) < 13:
 			continue
 		build_tree(tree_pos, rng.randf_range(0.75,1.25))
-
-	for pos in [Vector3(-82,15,-62),Vector3(76,18,-65),Vector3(-94,12,32),Vector3(94,14,28)]:
-		var mountain := MeshInstance3D.new()
-		var sphere := SphereMesh.new()
-		sphere.radius = 18
-		sphere.height = 38
-		mountain.mesh = sphere
-		mountain.scale = Vector3(1.8,0.8,1.4)
-		mountain.position = pos
-		mountain.material_override = mat(Color("596553"))
-		add_child(mountain)
 
 	enemy_root = Node3D.new()
 	enemy_root.name = "Enemies"
