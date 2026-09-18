@@ -5,7 +5,7 @@ const TerrainSurface = preload("res://scripts/terrain_surface.gd")
 # One continuous tower-defense route over the existing Bratislava DEM.
 # The road, debug centreline and EnemyPath3D all use the same dense sample set.
 
-const ROAD_WIDTH := 14.0
+const ROAD_WIDTH := 22.0
 const ROAD_OFFSET := 0.14
 const SAMPLE_SPACING := 5.0
 const BRIDGE_X := 2262.0
@@ -74,15 +74,15 @@ static func build(parent: Node3D, terrain_root: Node3D, create_visuals: bool = t
 	root.add_child(path)
 
 	if create_visuals:
-		var road_material := _material(Color("#80613f"), 1.0)
-		var debug_material := _material(Color("#e12626"), 0.72, Color("#7d0505"))
+		var road_material := _material(Color("#6a4728"), 1.0)
+		var debug_material := _material(Color("#ff3b30"), 0.72, Color("#ff3b30"))
 		var arrow_material := _material(Color("#ffcf3e"), 0.82, Color("#8a5a00"))
 		var marker_material := _material(Color("#f1efe7"), 0.9, Color("#333333"))
 		root.add_child(_build_terrain_ribbon("RoadSurface", road_points, ROAD_WIDTH, ROAD_OFFSET, sampler, road_material))
 		var debug_points: Array[Vector3] = []
 		for point in road_points:
 			debug_points.append(point + Vector3.UP * 0.28)
-		root.add_child(_build_terrain_ribbon("DebugCenterLine", debug_points, 0.75, ROAD_OFFSET + 0.28, sampler, debug_material))
+		root.add_child(_build_terrain_ribbon("DebugCenterLine", debug_points, 2.4, ROAD_OFFSET + 0.32, sampler, debug_material))
 		root.add_child(_build_direction_arrows(road_points, sampler, arrow_material))
 		_add_endpoint_marker(root, "SpawnDebugMarker", road_points[0], "SPAWN", sampler, marker_material, Color("#ffb233"))
 
@@ -292,6 +292,7 @@ static func _material(color: Color, roughness: float, emission: Color = Color.BL
 	material.albedo_color = color
 	material.roughness = roughness
 	material.cull_mode = BaseMaterial3D.CULL_DISABLED
+	material.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
 	if emission != Color.BLACK:
 		material.emission_enabled = true
 		material.emission = emission
