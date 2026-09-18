@@ -67,6 +67,18 @@ jobs:
             exit 1
           fi
 
+      - name: Validate castle anchor stage
+        run: |
+          godot --headless --path . --script scripts/validate_castle_anchors.gd > castle-anchor-validation.log 2>&1
+          status=$?
+          cat castle-anchor-validation.log
+          [ $status -eq 0 ]
+          grep -F "CASTLE_ANCHOR_VALIDATION_OK" castle-anchor-validation.log
+          if grep -Ei "SCRIPT ERROR|Parse Error|Failed to load script|ERROR:" castle-anchor-validation.log; then
+            echo "Castle anchor validation contains errors."
+            exit 1
+          fi
+
       - name: Export and validate Web build
         run: |
           mkdir -p build/web

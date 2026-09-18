@@ -16,9 +16,6 @@ static func build_bratislava(parent: Node3D) -> Node3D:
 	var roof := _material(Color("#8f3025"), 0.82)
 	var dark := _material(Color("#263139"), 0.48)
 	var courtyard := _material(Color("#b8aa91"), 1.0)
-	var fortification := _material(Color("#9f927d"), 0.98)
-	var hedge := _material(Color("#244d25"), 1.0)
-	var garden_path := _material(Color("#c8b896"), 1.0)
 
 	# Four wings around the real castle's square courtyard.
 	_add_box(root, "NorthWing", Vector3(0, 11, -35), Vector3(86, 22, 18), plaster)
@@ -54,35 +51,6 @@ static func build_bratislava(parent: Node3D) -> Node3D:
 		for y in [8.0, 16.0]:
 			_add_box(root, "WindowW", Vector3(-44.15, y, z), Vector3(0.45, 4.4, 3.4), dark)
 			_add_box(root, "WindowE", Vector3(44.15, y, z), Vector3(0.45, 4.4, 3.4), dark)
-
-	# The castle is not an isolated palace: the real complex is enclosed by
-	# massive walls and four admission gates. These terrain-following segments
-	# stay inside the verified OSM site extent and descend with Castle Hill.
-	var fortification_points := [
-		Vector3(-135, -48.1, -125), Vector3(110, -76.3, -135),
-		Vector3(140, -44.9, -70), Vector3(135, -97.2, 120),
-		Vector3(80, -79.3, 150), Vector3(-115, -27.6, 145),
-		Vector3(-145, -28.5, 70)
-	]
-	for i in fortification_points.size():
-		_add_sloped_wall(root, "CastleFortification%d" % i, fortification_points[i], fortification_points[(i + 1) % fortification_points.size()], 12.0, 5.0, fortification)
-
-	# Sigismund, Vienna and Leopold approaches, simplified at game scale.
-	_add_box(root, "SigismundGate", Vector3(136, -83, 84), Vector3(18, 22, 27), fortification, deg_to_rad(3.0))
-	_add_box(root, "SigismundOpening", Vector3(127.0, -87, 84), Vector3(1.0, 11, 7), dark, deg_to_rad(3.0))
-	_add_box(root, "ViennaGate", Vector3(88, -62, -133), Vector3(26, 20, 15), fortification)
-	_add_box(root, "LeopoldGate", Vector3(-132, -18, 78), Vector3(18, 20, 26), fortification, deg_to_rad(-8.0))
-
-	# Baroque garden north of the palace: walled terrace, paths and clipped
-	# boxwood pattern, based on the restored Maria Theresa-era garden.
-	_add_box(root, "GardenTerrace", Vector3(0, -9.5, -93), Vector3(102, 2.0, 74), garden_path)
-	_add_box(root, "GardenRetainingNorth", Vector3(0, -20, -131), Vector3(108, 24, 5), fortification)
-	_add_box(root, "GardenWallWest", Vector3(-53, -3, -93), Vector3(5, 15, 78), fortification)
-	_add_box(root, "GardenWallEast", Vector3(53, -3, -93), Vector3(5, 15, 78), fortification)
-	for x in [-36.0, -18.0, 18.0, 36.0]:
-		_add_box(root, "BaroqueHedgeLong", Vector3(x, -7.6, -93), Vector3(3.2, 3.8, 55), hedge)
-	for z in [-113.0, -93.0, -73.0]:
-		_add_box(root, "BaroqueHedgeCross", Vector3(0, -7.6, z), Vector3(78, 3.8, 3.2), hedge)
 
 	return root
 

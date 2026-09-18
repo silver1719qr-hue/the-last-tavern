@@ -2,6 +2,7 @@ extends Node3D
 
 const CastleModels = preload("res://scripts/castle_models.gd")
 const SiegeRoute = preload("res://scripts/siege_route.gd")
+const CastleAnchorDebug = preload("res://scripts/castle_anchor_debug.gd")
 
 @onready var terrain_root: Node3D = $BratislavaRealTerrain
 @onready var camera: Camera3D = $Camera3D
@@ -35,18 +36,22 @@ func _ready() -> void:
 
 	var stats := {"mesh": 0, "hidden": 0, "terrain": 0, "water": 0, "castle": 0}
 	_prepare_meshes(terrain_root, stats)
-	# Godot's no-render dummy server cannot instantiate PrimitiveMesh resources;
-	# desktop and WebGL builds create both landmarks normally.
+	var anchor_review_active := false
 	if DisplayServer.get_name() != "headless":
 		CastleModels.build_bratislava(self)
 		CastleModels.build_devin(self)
 		CastleModels.build_historical_bridges(self)
-		SiegeRoute.build(self, terrain_root)
+		var route := SiegeRoute.build(self, terrain_root)
+		CastleAnchorDebug.build(self, terrain_root, route)
+		anchor_review_active = true
 		stats["castle"] = 2
 	_setup_environment()
 	_setup_landmark_labels()
 	_setup_overlay(stats)
-	set_oblique_view()
+	if anchor_review_active:
+		set_anchor_review_view()
+	else:
+		set_oblique_view()
 
 
 func _make_terrain_material() -> ShaderMaterial:
@@ -176,7 +181,7 @@ func _setup_overlay(stats: Dictionary) -> void:
 	box.add_child(title)
 
 	var status := Label.new()
-	status.text = "19.3 × 18.9 km | relief ×%.1f | real DEM/OSM\nTerrain: %d | water: %d | landmark castles: %d" % [
+	status.text = "STAGE 1: 10 terrain-fitted anchors • gate marker on road • walls disabled\n19.3 × 18.9 km | relief ×%.1f | real DEM/OSM\nTerrain: %d | water: %d | landmark castles: %d" % [
 		VERTICAL_REVIEW_SCALE, stats["terrain"], stats["water"], stats["castle"]
 	]
 	status.add_theme_font_size_override("font_size", 11)
@@ -194,7 +199,7 @@ func _setup_overlay(stats: Dictionary) -> void:
 	buttons.add_child(top_button)
 
 	var help := Label.new()
-	help.text = "Mouse/WASD • 1 Castle • 2 Devín • 3 Danube bridge • 4 Morava • 5 siege route"
+	help.text = "Mouse/WASD • 1 Castle • 2 Devín • 3 Danube • 4 Morava • 5 road • 6 castle anchors"
 	help.add_theme_font_size_override("font_size", 11)
 	box.add_child(help)
 
@@ -212,6 +217,14 @@ func set_top_view() -> void:
 	distance = 22500.0
 	yaw = 0.0
 	pitch = deg_to_rad(-89.0)
+	_update_camera()
+
+
+func set_anchor_review_view() -> void:
+	focus = Vector3(2260.0, 142.0, 4700.0)
+	distance = 720.0
+	yaw = deg_to_rad(-16.0)
+	pitch = deg_to_rad(-68.0)
 	_update_camera()
 
 
@@ -278,6 +291,8 @@ func _unhandled_input(event: InputEvent) -> void:
 			yaw = 0.0
 			pitch = deg_to_rad(-88.0)
 			_update_camera()
+		elif event.keycode == KEY_6:
+			set_anchor_review_view()
 
 
 func _process(delta: float) -> void:
