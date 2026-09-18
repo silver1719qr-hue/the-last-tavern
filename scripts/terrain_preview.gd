@@ -1,6 +1,7 @@
 extends Node3D
 
 const CastleModels = preload("res://scripts/castle_models.gd")
+const SiegeRoute = preload("res://scripts/siege_route.gd")
 
 @onready var terrain_root: Node3D = $BratislavaRealTerrain
 @onready var camera: Camera3D = $Camera3D
@@ -40,6 +41,7 @@ func _ready() -> void:
 		CastleModels.build_bratislava(self)
 		CastleModels.build_devin(self)
 		CastleModels.build_historical_bridges(self)
+		SiegeRoute.build(self)
 		stats["castle"] = 2
 	_setup_environment()
 	_setup_landmark_labels()
@@ -192,7 +194,7 @@ func _setup_overlay(stats: Dictionary) -> void:
 	buttons.add_child(top_button)
 
 	var help := Label.new()
-	help.text = "Mouse/WASD • 1 Bratislava • 2 Devín • 3 Danube bridge • 4 Morava bridge"
+	help.text = "Mouse/WASD • 1 Castle • 2 Devín • 3 Danube bridge • 4 Morava • 5 siege route"
 	help.add_theme_font_size_override("font_size", 11)
 	box.add_child(help)
 
@@ -269,6 +271,12 @@ func _unhandled_input(event: InputEvent) -> void:
 			distance = 440.0
 			yaw = deg_to_rad(-48.0)
 			pitch = deg_to_rad(-27.0)
+			_update_camera()
+		elif event.keycode == KEY_5:
+			focus = Vector3(2240.0, 112.0, 4870.0)
+			distance = 1050.0
+			yaw = deg_to_rad(-25.0)
+			pitch = deg_to_rad(-49.0)
 			_update_camera()
 
 
