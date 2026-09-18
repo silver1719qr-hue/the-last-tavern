@@ -27,7 +27,7 @@ Review controls:
 - 2 — close view of restored Devin Castle
 - 3 — close view of the Danube pontoon bridge
 - 4 — close view of the Morava bridge near Devin
-- 5 — review the first siege route and tower build points
+- 5 — top overview of the continuous siege road and tower slots
 
 The GLB remains at real horizontal scale (about 19.3 x 18.9 km). The review
 scene uses a clearly disclosed 1.6x vertical scale so the real ridges and

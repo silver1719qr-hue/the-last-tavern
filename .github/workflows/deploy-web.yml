@@ -55,6 +55,18 @@ jobs:
             exit 1
           fi
 
+      - name: Validate continuous siege route
+        run: |
+          godot --headless --path . --script scripts/validate_siege_route.gd > siege-route-validation.log 2>&1
+          status=$?
+          cat siege-route-validation.log
+          [ $status -eq 0 ]
+          grep -F "SIEGE_ROUTE_VALIDATION_OK" siege-route-validation.log
+          if grep -Ei "SCRIPT ERROR|Parse Error|Failed to load script|ERROR:" siege-route-validation.log; then
+            echo "Siege route validation contains errors."
+            exit 1
+          fi
+
       - name: Export and validate Web build
         run: |
           mkdir -p build/web

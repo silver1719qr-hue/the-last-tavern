@@ -41,7 +41,7 @@ func _ready() -> void:
 		CastleModels.build_bratislava(self)
 		CastleModels.build_devin(self)
 		CastleModels.build_historical_bridges(self)
-		SiegeRoute.build(self)
+		SiegeRoute.build(self, terrain_root)
 		stats["castle"] = 2
 	_setup_environment()
 	_setup_landmark_labels()
@@ -273,10 +273,10 @@ func _unhandled_input(event: InputEvent) -> void:
 			pitch = deg_to_rad(-27.0)
 			_update_camera()
 		elif event.keycode == KEY_5:
-			focus = Vector3(2240.0, 112.0, 4870.0)
-			distance = 1050.0
-			yaw = deg_to_rad(-25.0)
-			pitch = deg_to_rad(-49.0)
+			focus = Vector3(2420.0, 105.0, 4890.0)
+			distance = 1480.0
+			yaw = 0.0
+			pitch = deg_to_rad(-88.0)
 			_update_camera()
 
 
