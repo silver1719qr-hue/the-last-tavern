@@ -6,7 +6,7 @@ const TerrainSurface = preload("res://scripts/terrain_surface.gd")
 # The road, debug centreline and EnemyPath3D all use the same dense sample set.
 
 const ROAD_WIDTH := 22.0
-const ROAD_OFFSET := 1.2
+const ROAD_OFFSET := 2.0
 const SAMPLE_SPACING := 5.0
 const BRIDGE_X := 2262.0
 const BRIDGE_NORTH_Z := 5005.0
@@ -32,40 +32,51 @@ static func build(parent: Node3D, terrain_root: Node3D, create_visuals: bool = t
 	# CLEAN GAMEPLAY SCHEME:
 	# bridge -> right turn -> broad three-lane serpentine -> river-facing gate.
 	# This deliberately avoids loops, self-crossings and narrow backtracking.
+	# FINAL CLEAN SCHEME copied from the approved reference:
+	# bridge -> right turn -> lower traverse -> hairpin -> middle traverse ->
+	# hairpin -> upper traverse -> MAIN GATE on the river-facing side.
+	# The three traverses are separated in Z, so the road cannot self-cross.
 	var controls: Array[Vector2] = [
-		# South bank / bridge.
+		# Bridge / south bank.
 		Vector2(2262.0, 5480.0),
 		Vector2(2262.0, 5350.0),
 		Vector2(2262.0, 5005.0),
 
-		# Exit bridge and turn right toward Staré Mesto.
-		Vector2(2390.0, 4995.0),
-		Vector2(2580.0, 4970.0),
-		Vector2(2760.0, 4925.0),
-		Vector2(2850.0, 4870.0),
+		# Turn right after the bridge onto the LOWER traverse.
+		Vector2(2400.0, 5000.0),
+		Vector2(2600.0, 4995.0),
+		Vector2(2800.0, 4990.0),
+		Vector2(2940.0, 4970.0),
 
-		# Hairpin 1: sweep back west while climbing.
-		Vector2(2880.0, 4820.0),
-		Vector2(2820.0, 4785.0),
-		Vector2(2660.0, 4765.0),
-		Vector2(2440.0, 4770.0),
-		Vector2(2240.0, 4800.0),
-		Vector2(2100.0, 4840.0),
+		# EAST hairpin up to the MIDDLE traverse.
+		Vector2(3020.0, 4930.0),
+		Vector2(3040.0, 4890.0),
+		Vector2(3000.0, 4860.0),
 
-		# Hairpin 2: sweep east again, closer to the castle.
-		Vector2(2040.0, 4800.0),
-		Vector2(2080.0, 4755.0),
-		Vector2(2210.0, 4725.0),
-		Vector2(2410.0, 4715.0),
-		Vector2(2580.0, 4735.0),
-		Vector2(2680.0, 4765.0),
+		# Middle traverse back WEST.
+		Vector2(2820.0, 4860.0),
+		Vector2(2600.0, 4860.0),
+		Vector2(2380.0, 4860.0),
+		Vector2(2160.0, 4865.0),
+		Vector2(2020.0, 4845.0),
 
-		# Final hairpin: turn back toward the castle's river-facing gate.
-		Vector2(2720.0, 4805.0),
-		Vector2(2680.0, 4840.0),
-		Vector2(2540.0, 4860.0),
-		Vector2(2390.0, 4845.0),
-		Vector2(2300.0, 4810.0),
+		# WEST hairpin up to the UPPER traverse.
+		Vector2(1960.0, 4815.0),
+		Vector2(1980.0, 4785.0),
+		Vector2(2050.0, 4765.0),
+
+		# Upper traverse EAST, then gently back into the main gate.
+		Vector2(2220.0, 4760.0),
+		Vector2(2400.0, 4760.0),
+		Vector2(2580.0, 4760.0),
+		Vector2(2740.0, 4760.0),
+		Vector2(2860.0, 4755.0),
+		Vector2(2920.0, 4735.0),
+		Vector2(2880.0, 4715.0),
+		Vector2(2740.0, 4710.0),
+		Vector2(2580.0, 4720.0),
+		Vector2(2420.0, 4735.0),
+		Vector2(2310.0, 4750.0),
 		Vector2(2260.0, 4762.0)
 	]
 	var smooth_controls := _chaikin_smooth(controls, 1)
@@ -169,9 +180,32 @@ static func _make_navigation_path(points: Array[Vector3]) -> Path3D:
 
 
 static func _build_terrain_ribbon(object_name: String, centers: Array[Vector3], width: float, offset: float, sampler: TerrainSurface, material: Material) -> MeshInstance3D:
-	# Build a continuous strip. For each cross-section use the HIGHEST terrain
-	# sample under the centre/left/right edge, then lift the complete section.
-	# This prevents any side of the road from being swallowed by a steep slope.
+	# Build one continuous deck. First compute a safe height for each cross-section
+	# from center + both road edges, then smooth that profile so there are no
+	# sudden spikes, holes or disappearing triangles on steep terrain.
+	var raw_heights: Array[float] = []
+	var sides: Array[Vector3] = []
+	for i in centers.size():
+		var side := _side_at(centers, i) * width * 0.5
+		sides.append(side)
+		var lx := centers[i].x + side.x
+		var lz := centers[i].z + side.z
+		var rx := centers[i].x - side.x
+		var rz := centers[i].z - side.z
+		var h := maxf(
+			sampler.height_world_at(centers[i].x, centers[i].z),
+			maxf(sampler.height_world_at(lx, lz), sampler.height_world_at(rx, rz))
+		) + offset
+		raw_heights.append(h)
+
+	var heights := raw_heights.duplicate()
+	for _pass in range(3):
+		var next := heights.duplicate()
+		for i in range(1, heights.size() - 1):
+			var smoothed := (heights[i - 1] + heights[i] * 2.0 + heights[i + 1]) * 0.25
+			next[i] = maxf(raw_heights[i], smoothed)
+		heights = next
+
 	var surface := SurfaceTool.new()
 	surface.begin(Mesh.PRIMITIVE_TRIANGLES)
 	surface.set_material(material)
@@ -179,30 +213,26 @@ static func _build_terrain_ribbon(object_name: String, centers: Array[Vector3], 
 	var right_top: Array[Vector3] = []
 	var left_bottom: Array[Vector3] = []
 	var right_bottom: Array[Vector3] = []
-	var thickness := 0.8 if width > 5.0 else 0.12
+	var thickness := 1.0 if width > 5.0 else 0.14
 
 	for i in centers.size():
-		var side := _side_at(centers, i) * width * 0.5
-		var lx := centers[i].x + side.x
-		var lz := centers[i].z + side.z
-		var rx := centers[i].x - side.x
-		var rz := centers[i].z - side.z
-		var terrain_center := sampler.height_world_at(centers[i].x, centers[i].z)
-		var terrain_left := sampler.height_world_at(lx, lz)
-		var terrain_right := sampler.height_world_at(rx, rz)
-		var y := maxf(terrain_center, maxf(terrain_left, terrain_right)) + offset
-		var left := Vector3(lx, y, lz)
-		var right := Vector3(rx, y, rz)
+		var side := sides[i]
+		var y := heights[i]
+		var left := Vector3(centers[i].x + side.x, y, centers[i].z + side.z)
+		var right := Vector3(centers[i].x - side.x, y, centers[i].z - side.z)
 		left_top.append(left)
 		right_top.append(right)
 		left_bottom.append(left - Vector3.UP * thickness)
 		right_bottom.append(right - Vector3.UP * thickness)
 
 	for i in centers.size() - 1:
+		# top
 		_add_triangle(surface, left_top[i], right_top[i + 1], right_top[i])
 		_add_triangle(surface, left_top[i], left_top[i + 1], right_top[i + 1])
+		# left skirt
 		_add_triangle(surface, left_bottom[i], left_top[i + 1], left_top[i])
 		_add_triangle(surface, left_bottom[i], left_bottom[i + 1], left_top[i + 1])
+		# right skirt
 		_add_triangle(surface, right_top[i], right_top[i + 1], right_bottom[i])
 		_add_triangle(surface, right_bottom[i], right_top[i + 1], right_bottom[i + 1])
 
