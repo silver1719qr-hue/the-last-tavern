@@ -6,7 +6,7 @@ const TerrainSurface = preload("res://scripts/terrain_surface.gd")
 # The road, debug centreline and EnemyPath3D all use the same dense sample set.
 
 const ROAD_WIDTH := 22.0
-const ROAD_OFFSET := 2.5
+const ROAD_OFFSET := 1.2
 const SAMPLE_SPACING := 5.0
 const BRIDGE_X := 2262.0
 const BRIDGE_NORTH_Z := 5005.0
@@ -29,44 +29,46 @@ static func build(parent: Node3D, terrain_root: Node3D, create_visuals: bool = t
 	# IMPORTANT: these are explicit world-space waypoints. We intentionally do
 	# NOT use Bézier auto-handles here because the previous curve overshot and
 	# created loops / disconnected-looking road pieces.
+	# CLEAN GAMEPLAY SCHEME:
+	# bridge -> right turn -> broad three-lane serpentine -> river-facing gate.
+	# This deliberately avoids loops, self-crossings and narrow backtracking.
 	var controls: Array[Vector2] = [
-		# Spawn / bridge.
+		# South bank / bridge.
 		Vector2(2262.0, 5480.0),
 		Vector2(2262.0, 5350.0),
 		Vector2(2262.0, 5005.0),
 
-		# Turn right toward the Old Town side.
+		# Exit bridge and turn right toward Staré Mesto.
 		Vector2(2390.0, 4995.0),
-		Vector2(2570.0, 4950.0),
-		Vector2(2740.0, 4865.0),
-		Vector2(2870.0, 4750.0),
-		Vector2(2910.0, 4620.0),
+		Vector2(2580.0, 4970.0),
+		Vector2(2760.0, 4925.0),
+		Vector2(2850.0, 4870.0),
 
-		# Run behind / north of the castle hill.
-		Vector2(2840.0, 4500.0),
-		Vector2(2680.0, 4435.0),
-		Vector2(2480.0, 4425.0),
-		Vector2(2290.0, 4470.0),
-		Vector2(2170.0, 4560.0),
+		# Hairpin 1: sweep back west while climbing.
+		Vector2(2880.0, 4820.0),
+		Vector2(2820.0, 4785.0),
+		Vector2(2660.0, 4765.0),
+		Vector2(2440.0, 4770.0),
+		Vector2(2240.0, 4800.0),
+		Vector2(2100.0, 4840.0),
 
-		# Broad serpentine turn 1.
-		Vector2(2160.0, 4650.0),
-		Vector2(2290.0, 4715.0),
-		Vector2(2470.0, 4725.0),
-		Vector2(2620.0, 4680.0),
+		# Hairpin 2: sweep east again, closer to the castle.
+		Vector2(2040.0, 4800.0),
+		Vector2(2080.0, 4755.0),
+		Vector2(2210.0, 4725.0),
+		Vector2(2410.0, 4715.0),
+		Vector2(2580.0, 4735.0),
+		Vector2(2680.0, 4765.0),
 
-		# Broad serpentine turn 2.
-		Vector2(2720.0, 4710.0),
-		Vector2(2710.0, 4785.0),
-		Vector2(2600.0, 4860.0),
-		Vector2(2450.0, 4890.0),
-
-		# Final river-facing approach: straighten toward the main gate.
-		Vector2(2350.0, 4875.0),
-		Vector2(2290.0, 4850.0),
-		Vector2(2261.0, 4818.0)
+		# Final hairpin: turn back toward the castle's river-facing gate.
+		Vector2(2720.0, 4805.0),
+		Vector2(2680.0, 4840.0),
+		Vector2(2540.0, 4860.0),
+		Vector2(2390.0, 4845.0),
+		Vector2(2300.0, 4810.0),
+		Vector2(2260.0, 4762.0)
 	]
-	var smooth_controls := _chaikin_smooth(controls, 2)
+	var smooth_controls := _chaikin_smooth(controls, 1)
 	var road_points := _sample_polyline_on_surface(smooth_controls, sampler, SAMPLE_SPACING)
 	var path := _make_navigation_path(road_points)
 	root.add_child(path)
@@ -166,10 +168,10 @@ static func _make_navigation_path(points: Array[Vector3]) -> Path3D:
 	return path
 
 
-static func _build_terrain_ribbon(object_name: String, centers: Array[Vector3], width: float, _offset: float, _sampler: TerrainSurface, material: Material) -> MeshInstance3D:
-	# Use the sampled centerline height for both road edges. This keeps every
-	# cross-section flat and prevents terrain-side height differences from
-	# twisting the ribbon into disappearing / inverted triangles.
+static func _build_terrain_ribbon(object_name: String, centers: Array[Vector3], width: float, offset: float, sampler: TerrainSurface, material: Material) -> MeshInstance3D:
+	# Build a continuous strip. For each cross-section use the HIGHEST terrain
+	# sample under the centre/left/right edge, then lift the complete section.
+	# This prevents any side of the road from being swallowed by a steep slope.
 	var surface := SurfaceTool.new()
 	surface.begin(Mesh.PRIMITIVE_TRIANGLES)
 	surface.set_material(material)
@@ -177,26 +179,30 @@ static func _build_terrain_ribbon(object_name: String, centers: Array[Vector3], 
 	var right_top: Array[Vector3] = []
 	var left_bottom: Array[Vector3] = []
 	var right_bottom: Array[Vector3] = []
-	var thickness := 0.9 if width > 5.0 else 0.15
+	var thickness := 0.8 if width > 5.0 else 0.12
 
 	for i in centers.size():
 		var side := _side_at(centers, i) * width * 0.5
-		var y := centers[i].y
-		var left := Vector3(centers[i].x + side.x, y, centers[i].z + side.z)
-		var right := Vector3(centers[i].x - side.x, y, centers[i].z - side.z)
+		var lx := centers[i].x + side.x
+		var lz := centers[i].z + side.z
+		var rx := centers[i].x - side.x
+		var rz := centers[i].z - side.z
+		var terrain_center := sampler.height_world_at(centers[i].x, centers[i].z)
+		var terrain_left := sampler.height_world_at(lx, lz)
+		var terrain_right := sampler.height_world_at(rx, rz)
+		var y := maxf(terrain_center, maxf(terrain_left, terrain_right)) + offset
+		var left := Vector3(lx, y, lz)
+		var right := Vector3(rx, y, rz)
 		left_top.append(left)
 		right_top.append(right)
 		left_bottom.append(left - Vector3.UP * thickness)
 		right_bottom.append(right - Vector3.UP * thickness)
 
 	for i in centers.size() - 1:
-		# Top.
 		_add_triangle(surface, left_top[i], right_top[i + 1], right_top[i])
 		_add_triangle(surface, left_top[i], left_top[i + 1], right_top[i + 1])
-		# Left side.
 		_add_triangle(surface, left_bottom[i], left_top[i + 1], left_top[i])
 		_add_triangle(surface, left_bottom[i], left_bottom[i + 1], left_top[i + 1])
-		# Right side.
 		_add_triangle(surface, right_top[i], right_top[i + 1], right_bottom[i])
 		_add_triangle(surface, right_bottom[i], right_top[i + 1], right_bottom[i + 1])
 
