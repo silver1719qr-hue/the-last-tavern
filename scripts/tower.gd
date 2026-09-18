@@ -1,5 +1,6 @@
 extends Node3D
 
+var main_ref: Node = null
 var level: int = 0
 var cooldown: float = 0.0
 var built: bool = false
@@ -20,7 +21,7 @@ func _process(delta: float) -> void:
 
 func get_interaction_text(main: Node) -> String:
 	if not built:
-		return "E — build watchtower (75 gold)"
+		return "E — build defensive tower (90 gold)"
 	if level >= 5:
 		return "Watchtower level 5 — maximum"
 	return "E — upgrade watchtower to level %d (%d gold)" % [level + 1, upgrade_cost()]
@@ -30,15 +31,15 @@ func interact(player: Node) -> void:
 	if main == null:
 		return
 	if not built:
-		if main.gold < 75:
-			main.prompt_label.text = "Need 75 gold to build this watchtower."
+		if main.gold < 90:
+			main.prompt_label.text = "Need 90 gold to construct this tower."
 			return
-		main.gold -= 75
+		main.gold -= 90
 		built = true
 		level = 1
 		build_tower_visuals()
 		main.update_hud()
-		main.prompt_label.text = "Watchtower built — level 1."
+		main.prompt_label.text = "Defensive tower constructed."
 		return
 	if level >= 5:
 		main.prompt_label.text = "This watchtower is already at maximum level."
@@ -54,11 +55,11 @@ func interact(player: Node) -> void:
 	main.prompt_label.text = "Watchtower upgraded to level %d." % level
 
 func upgrade_cost() -> int:
-	return 45 + level * 25
+	return 60 + level * 35
 
 func auto_fire() -> void:
 	var target: Node3D = null
-	var nearest_distance := 18.0 + float(level) * 2.5
+	var nearest_distance: float = 28.0 + float(level) * 3.0
 	for enemy in get_tree().get_nodes_in_group("enemies"):
 		if not is_instance_valid(enemy) or not (enemy is Node3D):
 			continue
@@ -68,7 +69,7 @@ func auto_fire() -> void:
 			target = enemy
 	if target == null:
 		return
-	cooldown = max(0.28, 1.18 - float(level) * 0.14)
+	cooldown = maxf(0.30, 1.20 - float(level) * 0.14)
 	if turret_head != null:
 		var flat_target := target.global_position
 		flat_target.y = turret_head.global_position.y
