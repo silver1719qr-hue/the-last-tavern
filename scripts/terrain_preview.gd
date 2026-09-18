@@ -14,6 +14,15 @@ var dragging: bool = false
 var relief_mode := 3
 
 func _ready() -> void:
+	# The GLB contains its own Blender Sun exported with extreme intensity (~1570).
+	# Disable imported lights/cameras so they cannot blow out the terrain preview.
+	for child in terrain_root.find_children("*", "Light3D", true, false):
+		if child is Light3D:
+			child.visible = false
+	var imported_camera := terrain_root.find_child("Overview_Camera", true, false)
+	if imported_camera is Camera3D:
+		imported_camera.current = false
+
 	for node_name in [
 		"Terrain-col",
 		"Kamzik_439m",
