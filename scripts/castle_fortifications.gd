@@ -91,9 +91,10 @@ static func _add_gatehouse(parent: Node3D, sampler: TerrainSurface, stone: Mater
 	var gate_width := GATE_HALF_WIDTH * 2.0
 	var tower_offset := GATE_HALF_WIDTH + 7.0
 
-	for side_sign in [-1.0, 1.0]:
-		var x := GATE_CENTER.x + tower_offset * side_sign
-		var y := sampler.height_world_at(x, GATE_CENTER.y)
+	var gate_sides: Array[float] = [-1.0, 1.0]
+	for side_sign: float in gate_sides:
+		var x: float = GATE_CENTER.x + tower_offset * side_sign
+		var y: float = sampler.height_world_at(x, GATE_CENTER.y)
 		_add_cylinder(parent, Vector3(x, y + 8.0, GATE_CENTER.y), 7.0, 16.0, stone)
 		_add_cone(parent, Vector3(x, y + 19.0, GATE_CENTER.y), 8.5, 7.0, roof)
 
