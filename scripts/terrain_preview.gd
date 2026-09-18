@@ -38,13 +38,13 @@ func _ready() -> void:
 	_prepare_meshes(terrain_root, stats)
 	var anchor_review_active := false
 	if DisplayServer.get_name() != "headless":
-		# Validation mode: no castles, walls, gates or bridges yet.
-		# First prove that the siege road and every future fortification anchor
-		# are correctly attached to the real terrain surface.
+		# Keep Bratislava Castle visible as the fixed destination/reference.
+		# Walls, gates and towers stay disabled until road/anchor placement is correct.
+		CastleModels.build_bratislava(self)
 		var route := SiegeRoute.build(self, terrain_root)
 		CastleAnchorDebug.build(self, terrain_root, route)
 		anchor_review_active = true
-		stats["castle"] = 0
+		stats["castle"] = 1
 	_setup_environment()
 	_setup_landmark_labels()
 	_setup_overlay(stats)
@@ -181,7 +181,7 @@ func _setup_overlay(stats: Dictionary) -> void:
 	box.add_child(title)
 
 	var status := Label.new()
-	status.text = "VALIDATION MODE: terrain + ONE road + 10 anchors only\nNo castle walls / no gates / no towers until surface fit is proven\n19.3 × 18.9 km | relief ×%.1f | real DEM/OSM\nTerrain: %d | water: %d | castles shown: %d" % [
+	status.text = "ROAD REVIEW: Bratislava Castle + ONE continuous route + anchors\nWalls / gates / towers are still disabled until the route is correct\n19.3 × 18.9 km | relief ×%.1f | real DEM/OSM\nTerrain: %d | water: %d | castles shown: %d" % [
 		VERTICAL_REVIEW_SCALE, stats["terrain"], stats["water"], stats["castle"]
 	]
 	status.add_theme_font_size_override("font_size", 11)
