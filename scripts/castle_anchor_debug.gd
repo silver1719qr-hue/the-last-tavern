@@ -84,10 +84,10 @@ static func _add_anchor_visual(anchor: Marker3D, number: int, is_gate_edge: bool
 	var label := Label3D.new()
 	label.name = "AnchorNumber"
 	label.text = str(number)
-	label.position = Vector3(0.0, 7.0, 0.0)
+	label.position = Vector3(0.0, 4.5, 0.0)
 	label.fixed_size = true
-	label.font_size = 16
-	label.outline_size = 5
+	label.font_size = 10
+	label.outline_size = 2
 	label.modulate = color
 	label.outline_modulate = Color("#102027")
 	label.no_depth_test = true
@@ -105,9 +105,9 @@ static func _add_gate_visual(gate: Marker3D) -> void:
 	var label := Label3D.new()
 	label.name = "GateLabel"
 	label.text = "GATE"
-	label.position = Vector3(0.0, 10.0, 0.0)
+	label.position = Vector3(0.0, 6.0, 0.0)
 	label.fixed_size = true
-	label.font_size = 15
+	label.font_size = 11
 	label.outline_size = 5
 	label.modulate = color
 	label.outline_modulate = Color("#2b0620")
