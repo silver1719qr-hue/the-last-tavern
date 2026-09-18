@@ -226,11 +226,11 @@ func set_top_view() -> void:
 
 
 func set_road_review_view() -> void:
-	# Whole bridge-to-castle route in one frame.
-	focus = Vector3(2520.0, 150.0, 4890.0)
-	distance = 1500.0
-	yaw = 0.0
-	pitch = deg_to_rad(-82.0)
+	# Whole approved bridge-to-castle serpentine in one frame.
+	focus = Vector3(2480.0, 145.0, 5020.0)
+	distance = 1750.0
+	yaw = deg_to_rad(-2.0)
+	pitch = deg_to_rad(-80.0)
 	_update_camera()
 
 
