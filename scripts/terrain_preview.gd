@@ -39,6 +39,7 @@ func _ready() -> void:
 	if DisplayServer.get_name() != "headless":
 		CastleModels.build_bratislava(self)
 		CastleModels.build_devin(self)
+		CastleModels.build_historical_bridges(self)
 		stats["castle"] = 2
 	_setup_environment()
 	_setup_landmark_labels()
@@ -191,7 +192,7 @@ func _setup_overlay(stats: Dictionary) -> void:
 	buttons.add_child(top_button)
 
 	var help := Label.new()
-	help.text = "Right-drag rotate • Wheel zoom • WASD pan • 1 Bratislava • 2 Devín"
+	help.text = "Mouse/WASD • 1 Bratislava • 2 Devín • 3 Danube bridge • 4 Morava bridge"
 	help.add_theme_font_size_override("font_size", 11)
 	box.add_child(help)
 
@@ -256,6 +257,18 @@ func _unhandled_input(event: InputEvent) -> void:
 			distance = 760.0
 			yaw = deg_to_rad(-42.0)
 			pitch = deg_to_rad(-31.0)
+			_update_camera()
+		elif event.keycode == KEY_3:
+			focus = Vector3(2262.0, 42.0, 5173.0)
+			distance = 720.0
+			yaw = deg_to_rad(-38.0)
+			pitch = deg_to_rad(-30.0)
+			_update_camera()
+		elif event.keycode == KEY_4:
+			focus = Vector3(-6914.0, 47.0, 700.0)
+			distance = 440.0
+			yaw = deg_to_rad(-48.0)
+			pitch = deg_to_rad(-27.0)
 			_update_camera()
 
 

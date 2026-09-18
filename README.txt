@@ -11,6 +11,12 @@ Visible geography:
 - Petrzalka lowland
 - Little Carpathians and Kamzik
 
+Landmark treatment:
+- Devin walls and limestone crag are fitted to DEM elevations inside the real OSM site.
+- Bratislava Castle includes its fortified grounds and Baroque garden terrace.
+- The Danube crossing uses a historically appropriate timber pontoon form.
+- The Morava crossing is a historically styled gameplay route, not presented as an exact surviving bridge.
+
 Review controls:
 - Right mouse drag — orbit camera
 - Mouse wheel — zoom
@@ -19,6 +25,8 @@ Review controls:
 - R or OBLIQUE VIEW — reset to the starting oblique view
 - 1 — close view of Bratislava Castle
 - 2 — close view of restored Devin Castle
+- 3 — close view of the Danube pontoon bridge
+- 4 — close view of the Morava bridge near Devin
 
 The GLB remains at real horizontal scale (about 19.3 x 18.9 km). The review
 scene uses a clearly disclosed 1.6x vertical scale so the real ridges and
