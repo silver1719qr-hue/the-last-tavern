@@ -6,7 +6,7 @@ const TerrainSurface = preload("res://scripts/terrain_surface.gd")
 # The road, debug centreline and EnemyPath3D all use the same dense sample set.
 
 const ROAD_WIDTH := 22.0
-const ROAD_OFFSET := 6.0
+const ROAD_OFFSET := 2.5
 const SAMPLE_SPACING := 5.0
 const BRIDGE_X := 2262.0
 const BRIDGE_NORTH_Z := 5005.0
@@ -35,33 +35,36 @@ static func build(parent: Node3D, terrain_root: Node3D, create_visuals: bool = t
 		Vector2(2262.0, 5350.0),
 		Vector2(2262.0, 5005.0),
 
-		# Right turn toward Staré Mesto.
-		Vector2(2400.0, 4990.0),
-		Vector2(2580.0, 4940.0),
-		Vector2(2760.0, 4850.0),
-		Vector2(2900.0, 4720.0),
-		Vector2(2920.0, 4580.0),
+		# Turn right toward the Old Town side.
+		Vector2(2390.0, 4995.0),
+		Vector2(2570.0, 4950.0),
+		Vector2(2740.0, 4865.0),
+		Vector2(2870.0, 4750.0),
+		Vector2(2910.0, 4620.0),
 
-		# Back side of Castle Hill.
-		Vector2(2840.0, 4470.0),
-		Vector2(2660.0, 4420.0),
-		Vector2(2450.0, 4430.0),
-		Vector2(2280.0, 4490.0),
+		# Run behind / north of the castle hill.
+		Vector2(2840.0, 4500.0),
+		Vector2(2680.0, 4435.0),
+		Vector2(2480.0, 4425.0),
+		Vector2(2290.0, 4470.0),
+		Vector2(2170.0, 4560.0),
 
-		# Hairpin 1.
-		Vector2(2180.0, 4580.0),
-		Vector2(2200.0, 4650.0),
-		Vector2(2340.0, 4690.0),
-		Vector2(2520.0, 4680.0),
-		Vector2(2660.0, 4630.0),
+		# Broad serpentine turn 1.
+		Vector2(2160.0, 4650.0),
+		Vector2(2290.0, 4715.0),
+		Vector2(2470.0, 4725.0),
+		Vector2(2620.0, 4680.0),
 
-		# Hairpin 2 and final approach.
-		Vector2(2740.0, 4675.0),
-		Vector2(2710.0, 4740.0),
-		Vector2(2580.0, 4790.0),
-		Vector2(2420.0, 4800.0),
-		Vector2(2300.0, 4785.0),
-		Vector2(2260.0, 4760.0)
+		# Broad serpentine turn 2.
+		Vector2(2720.0, 4710.0),
+		Vector2(2710.0, 4785.0),
+		Vector2(2600.0, 4860.0),
+		Vector2(2450.0, 4890.0),
+
+		# Final river-facing approach: straighten toward the main gate.
+		Vector2(2350.0, 4875.0),
+		Vector2(2290.0, 4850.0),
+		Vector2(2261.0, 4818.0)
 	]
 	var smooth_controls := _chaikin_smooth(controls, 2)
 	var road_points := _sample_polyline_on_surface(smooth_controls, sampler, SAMPLE_SPACING)
@@ -163,21 +166,40 @@ static func _make_navigation_path(points: Array[Vector3]) -> Path3D:
 	return path
 
 
-static func _build_terrain_ribbon(object_name: String, centers: Array[Vector3], width: float, offset: float, sampler: TerrainSurface, material: Material) -> MeshInstance3D:
+static func _build_terrain_ribbon(object_name: String, centers: Array[Vector3], width: float, _offset: float, _sampler: TerrainSurface, material: Material) -> MeshInstance3D:
+	# Use the sampled centerline height for both road edges. This keeps every
+	# cross-section flat and prevents terrain-side height differences from
+	# twisting the ribbon into disappearing / inverted triangles.
 	var surface := SurfaceTool.new()
 	surface.begin(Mesh.PRIMITIVE_TRIANGLES)
 	surface.set_material(material)
-	var left: Array[Vector3] = []
-	var right: Array[Vector3] = []
+	var left_top: Array[Vector3] = []
+	var right_top: Array[Vector3] = []
+	var left_bottom: Array[Vector3] = []
+	var right_bottom: Array[Vector3] = []
+	var thickness := 0.9 if width > 5.0 else 0.15
+
 	for i in centers.size():
 		var side := _side_at(centers, i) * width * 0.5
-		var left_xz := Vector2(centers[i].x + side.x, centers[i].z + side.z)
-		var right_xz := Vector2(centers[i].x - side.x, centers[i].z - side.z)
-		left.append(_surface_point(left_xz, sampler, offset))
-		right.append(_surface_point(right_xz, sampler, offset))
+		var y := centers[i].y
+		var left := Vector3(centers[i].x + side.x, y, centers[i].z + side.z)
+		var right := Vector3(centers[i].x - side.x, y, centers[i].z - side.z)
+		left_top.append(left)
+		right_top.append(right)
+		left_bottom.append(left - Vector3.UP * thickness)
+		right_bottom.append(right - Vector3.UP * thickness)
+
 	for i in centers.size() - 1:
-		_add_triangle(surface, left[i], right[i + 1], right[i])
-		_add_triangle(surface, left[i], left[i + 1], right[i + 1])
+		# Top.
+		_add_triangle(surface, left_top[i], right_top[i + 1], right_top[i])
+		_add_triangle(surface, left_top[i], left_top[i + 1], right_top[i + 1])
+		# Left side.
+		_add_triangle(surface, left_bottom[i], left_top[i + 1], left_top[i])
+		_add_triangle(surface, left_bottom[i], left_bottom[i + 1], left_top[i + 1])
+		# Right side.
+		_add_triangle(surface, right_top[i], right_top[i + 1], right_bottom[i])
+		_add_triangle(surface, right_bottom[i], right_top[i + 1], right_bottom[i + 1])
+
 	surface.generate_normals()
 	var instance := MeshInstance3D.new()
 	instance.name = object_name
