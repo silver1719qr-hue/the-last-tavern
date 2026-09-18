@@ -266,9 +266,8 @@ func build_world() -> void:
 	sun.shadow_enabled = true
 	add_child(sun)
 
-	# One continuous height-field landscape: hills, river valley and castle plateau.
-	build_terrain()
-	build_river()
+	# Real Bratislava terrain is imported from the GLB in Main.tscn.
+	# The old procedural terrain/river are intentionally disabled.
 
 	# Main stone bridge: the primary invasion route.
 	box_obj("DanubeBridge", Vector3(0, 1.0, 61), Vector3(11, 1, 66), Color("8d8170"), self, true)
