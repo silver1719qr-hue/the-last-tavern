@@ -3,6 +3,7 @@ extends Node3D
 const CastleModels = preload("res://scripts/castle_models.gd")
 const SiegeRoute = preload("res://scripts/siege_route.gd")
 const CastleAnchorDebug = preload("res://scripts/castle_anchor_debug.gd")
+const CastleFortifications = preload("res://scripts/castle_fortifications.gd")
 const TerrainSurface = preload("res://scripts/terrain_surface.gd")
 
 @onready var terrain_root: Node3D = $BratislavaRealTerrain
@@ -48,6 +49,7 @@ func _ready() -> void:
 		# to the DISPLAYED terrain height so it cannot be buried under the hill.
 		castle.global_position.y = surface_sampler.height_world_at(2260.8, 4704.0) + 0.6
 		SiegeRoute.build(self, terrain_root)
+		CastleFortifications.build(self, terrain_root)
 		# Hide anchor numbers during route review; they were obscuring the road.
 		anchor_review_active = false
 		stats["castle"] = 1
@@ -184,7 +186,7 @@ func _setup_overlay(stats: Dictionary) -> void:
 	box.add_child(title)
 
 	var status := Label.new()
-	status.text = "ROAD REVIEW: Bratislava Castle + ONE continuous route\nRoad is temporarily lifted above terrain so every segment stays visible\nWalls / gates / towers / anchor numbers are hidden\n19.3 × 18.9 km | relief ×%.1f | real DEM/OSM\nTerrain: %d | water: %d | castles shown: %d" % [
+	status.text = "ROAD + FORTIFICATION REVIEW\nContinuous route + terrain-fitted enclosure + MAIN GATE facing the river\nAnchor numbers hidden for clarity\n19.3 × 18.9 km | relief ×%.1f | real DEM/OSM\nTerrain: %d | water: %d | castles shown: %d" % [
 		VERTICAL_REVIEW_SCALE, stats["terrain"], stats["water"], stats["castle"]
 	]
 	status.add_theme_font_size_override("font_size", 11)
