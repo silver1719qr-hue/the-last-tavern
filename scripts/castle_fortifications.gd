@@ -23,19 +23,20 @@ static func build(parent: Node3D, terrain_root: Node3D) -> Node3D:
 	# Terrain-following enclosure around the castle. The south side intentionally
 	# leaves a centred opening toward the Danube/bridge.
 	var loop: Array[Vector2] = [
-		Vector2(2125.0, 4808.0),
-		Vector2(2110.0, 4705.0),
-		Vector2(2140.0, 4595.0),
-		Vector2(2240.0, 4545.0),
-		Vector2(2365.0, 4570.0),
-		Vector2(2410.0, 4670.0),
-		Vector2(2395.0, 4778.0)
+		# West / north / east perimeter around the castle hill.
+		Vector2(2160.0, 4760.0),
+		Vector2(2140.0, 4700.0),
+		Vector2(2165.0, 4630.0),
+		Vector2(2260.0, 4585.0),
+		Vector2(2355.0, 4630.0),
+		Vector2(2380.0, 4700.0),
+		Vector2(2360.0, 4760.0)
 	]
 	var gate_left := Vector2(GATE_CENTER.x - GATE_HALF_WIDTH, GATE_CENTER.y)
 	var gate_right := Vector2(GATE_CENTER.x + GATE_HALF_WIDTH, GATE_CENTER.y)
 
 	# Left half of river-facing wall -> west/north/east perimeter.
-	_add_wall_path(root, [gate_left, Vector2(2190.0, 4818.0), loop[0], loop[1], loop[2], loop[3], loop[4], loop[5], loop[6], Vector2(2335.0, 4818.0), gate_right], sampler, stone)
+	_add_wall_path(root, [gate_left, loop[0], loop[1], loop[2], loop[3], loop[4], loop[5], loop[6], gate_right], sampler, stone)
 
 	# Main gate faces the river and aligns with the final road center.
 	_add_gatehouse(root, sampler, stone, dark, roof)
