@@ -1,7 +1,9 @@
 extends Node3D
 
 var player: CharacterBody3D
-var base_hp: int = 300
+var base_hp: int = 500
+var base_max_hp: int = 500
+var castle_level: int = 1
 var gold: int = 220
 var wave: int = 0
 var enemies_left: int = 0
@@ -16,8 +18,8 @@ var tower_root: Node3D
 var spawn_points: Array[Vector3] = []
 var rng := RandomNumberGenerator.new()
 
-var command_ladder_pos := Vector3(6.4, 1.0, 7.0)
-var command_top_pos := Vector3(0.0, 11.6, 3.0)
+var command_ladder_pos := Vector3(-15.0, 4.0, 8.0)
+var command_top_pos := Vector3(0.0, 10.8, 3.0)
 
 func _ready() -> void:
 	setup_input_actions()
@@ -116,58 +118,109 @@ func build_world() -> void:
 	var env := WorldEnvironment.new()
 	var environment := Environment.new()
 	environment.background_mode = Environment.BG_COLOR
-	environment.background_color = Color("92b6c7")
+	environment.background_color = Color("b8c5cc")
 	environment.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
-	environment.ambient_light_color = Color("cfd7c6")
-	environment.ambient_light_energy = 0.7
+	environment.ambient_light_color = Color("ead9bd")
+	environment.ambient_light_energy = 0.78
 	environment.tonemap_mode = Environment.TONE_MAPPER_FILMIC
+	environment.fog_enabled = true
+	environment.fog_light_color = Color("b8c5c8")
+	environment.fog_light_energy = 0.55
+	environment.fog_density = 0.004
 	env.environment = environment
 	add_child(env)
 
 	var sun := DirectionalLight3D.new()
-	sun.rotation_degrees = Vector3(-48, -35, 0)
-	sun.light_energy = 1.25
+	sun.rotation_degrees = Vector3(-42, -28, 0)
+	sun.light_color = Color("ffd2a0")
+	sun.light_energy = 1.45
 	sun.shadow_enabled = true
 	add_child(sun)
 
-	box_obj("Ground", Vector3(0, -0.5, 0), Vector3(140, 1, 140), Color("4e6b3a"), self, true)
-	box_obj("RoadN", Vector3(0, 0.02, -42), Vector3(9, 0.08, 52), Color("765b3c"), self, false)
-	box_obj("RoadE", Vector3(42, 0.02, 0), Vector3(52, 0.08, 9), Color("765b3c"), self, false)
-	box_obj("RoadW", Vector3(-42, 0.02, 0), Vector3(52, 0.08, 9), Color("765b3c"), self, false)
-	spawn_points = [Vector3(0, 1, -67), Vector3(67, 1, 0), Vector3(-67, 1, 0)]
+	# Lowlands and the raised historic city hill.
+	box_obj("Lowlands", Vector3(0, -1.0, 26), Vector3(220, 2, 200), Color("586b47"), self, true)
+	box_obj("CastleHill", Vector3(0, 1.5, -12), Vector3(110, 5, 84), Color("68744e"), self, true)
+
+	# The Danube.
+	var river := MeshInstance3D.new()
+	var water_mesh := BoxMesh.new()
+	water_mesh.size = Vector3(220, 0.35, 48)
+	river.mesh = water_mesh
+	river.position = Vector3(0, 0.05, 61)
+	var water_material := StandardMaterial3D.new()
+	water_material.albedo_color = Color("3f7089")
+	water_material.roughness = 0.24
+	water_material.metallic = 0.08
+	river.material_override = water_material
+	add_child(river)
+
+	# Main stone bridge: the primary invasion route.
+	box_obj("DanubeBridge", Vector3(0, 1.0, 61), Vector3(11, 1, 66), Color("8d8170"), self, true)
+	for z in range(34, 92, 8):
+		box_obj("BridgePier", Vector3(0, 0.0, float(z)), Vector3(3.8, 3.0, 2.0), Color("70665b"), self, true)
+	for side in [-5.0, 5.0]:
+		box_obj("BridgeRail", Vector3(side, 2.0, 61), Vector3(0.35, 1.5, 66), Color("756b5f"), self, false)
+
+	# Gentle stone causeway up to the city gate.
+	box_obj("CastleCauseway", Vector3(0, 1.8, 27), Vector3(12, 1.1, 30), Color("837560"), self, true, Vector3(-5.5, 0, 0))
+
+	# Historic bridge gate towers.
+	for x in [-7.5, 7.5]:
+		cyl_obj("BridgeGateTower", Vector3(x, 4.0, 30.5), 3.1, 8.0, Color("918b7f"), self, true)
+
+	# Far-bank invasion camp.
+	for p in [Vector3(-18,1.4,99), Vector3(-9,1.4,104), Vector3(10,1.4,101), Vector3(20,1.4,106)]:
+		var tent := MeshInstance3D.new()
+		var tent_mesh := PrismMesh.new()
+		tent_mesh.size = Vector3(7,4,6)
+		tent.mesh = tent_mesh
+		tent.position = p
+		tent.rotation_degrees = Vector3(0,0,90)
+		tent.material_override = mat(Color("5e332b"))
+		add_child(tent)
+
+	spawn_points = [Vector3(-3, 1.5, 94), Vector3(0, 1.5, 98), Vector3(3, 1.5, 94)]
 
 	build_tavern_and_command_deck()
 	build_palisade()
 
 	tower_root = Node3D.new()
-	tower_root.name = "TowerSites"
+	tower_root.name = "CastleTowers"
 	add_child(tower_root)
-	for pos in [Vector3(-16, 0, -14), Vector3(16, 0, -14), Vector3(-16, 0, 14), Vector3(16, 0, 14)]:
+	for pos in [Vector3(-25, 10.0, -20), Vector3(25, 10.0, -20), Vector3(-25, 10.0, 16), Vector3(25, 10.0, 16)]:
 		build_tower_site(pos)
 
-	for i in range(95):
+	# Old-town houses around the fortress.
+	var houses = [Vector3(-43,3,-5),Vector3(-39,3,8),Vector3(-45,3,16),Vector3(41,3,-7),Vector3(45,3,6),Vector3(39,3,15),Vector3(-34,3,-28),Vector3(35,3,-28)]
+	for i in range(houses.size()):
+		var hp: Vector3 = houses[i]
+		var hh: float = 4.5 + float(i % 3)
+		box_obj("HistoricHouse", hp + Vector3(0,hh*0.5,0), Vector3(7,hh,6.5), Color("cfba91"), self, true)
+
+	# Church / old-town landmark.
+	box_obj("ChurchTower", Vector3(-36,9,-12), Vector3(5,15,5), Color("d9d2c2"), self, true)
+	cyl_obj("ChurchSpire", Vector3(-36,19,-12), 0.55, 8.0, Color("405f58"), self, false)
+
+	# Forested hills around the city.
+	for i in range(75):
 		var angle := rng.randf_range(0, TAU)
-		var radius := rng.randf_range(28, 66)
-		var pos := Vector3(cos(angle) * radius, 0, sin(angle) * radius)
-		if abs(pos.x) < 8 or abs(pos.z) < 8:
+		var radius := rng.randf_range(48, 92)
+		var tree_pos := Vector3(cos(angle)*radius, 3.0, -8 + sin(angle)*radius*0.65)
+		if abs(tree_pos.x) < 34 and tree_pos.z > -38 and tree_pos.z < 28:
 			continue
-		build_tree(pos, rng.randf_range(0.8, 1.35))
+		if tree_pos.z > 34 and abs(tree_pos.x) < 13:
+			continue
+		build_tree(tree_pos, rng.randf_range(0.75,1.25))
 
-	for i in range(28):
-		var angle := rng.randf_range(0, TAU)
-		var radius := rng.randf_range(35, 64)
-		var pos := Vector3(cos(angle) * radius, 0.4, sin(angle) * radius)
-		build_rock(pos, rng.randf_range(0.9, 2.1))
-
-	for pos in [Vector3(-55, 8, -55), Vector3(55, 10, -56), Vector3(-58, 9, 55), Vector3(59, 12, 51)]:
+	for pos in [Vector3(-82,15,-62),Vector3(76,18,-65),Vector3(-94,12,32),Vector3(94,14,28)]:
 		var mountain := MeshInstance3D.new()
 		var sphere := SphereMesh.new()
-		sphere.radius = 12
-		sphere.height = 28
+		sphere.radius = 18
+		sphere.height = 38
 		mountain.mesh = sphere
-		mountain.scale = Vector3(1.8, 1.0, 1.3)
+		mountain.scale = Vector3(1.8,0.8,1.4)
 		mountain.position = pos
-		mountain.material_override = mat(Color("59635d"))
+		mountain.material_override = mat(Color("596553"))
 		add_child(mountain)
 
 	enemy_root = Node3D.new()
@@ -175,50 +228,83 @@ func build_world() -> void:
 	add_child(enemy_root)
 
 func build_tavern_and_command_deck() -> void:
-	box_obj("Tavern", Vector3(0, 2.5, 3), Vector3(14, 5, 10), Color("7b4a2d"))
-	box_obj("TavernUpper", Vector3(0, 6, 3), Vector3(11, 2.2, 8), Color("d0ad75"))
+	# Bratislava-inspired white castle in the centre of the fortified hill.
+	box_obj("CastleMain", Vector3(0,6,-4), Vector3(24,6,18), Color("ded8ca"))
+	box_obj("CastleUpper", Vector3(0,9,-4), Vector3(19,2,13), Color("eee9dd"))
 
 	var roof := MeshInstance3D.new()
 	var prism := PrismMesh.new()
-	prism.size = Vector3(16, 5, 12)
+	prism.size = Vector3(21,4,15)
 	roof.mesh = prism
-	roof.material_override = mat(Color("4a2b22"))
-	roof.position = Vector3(0, 8, 3)
-	roof.rotation_degrees = Vector3(0, 0, 90)
+	roof.material_override = mat(Color("873a30"))
+	roof.position = Vector3(0,11.2,-4)
+	roof.rotation_degrees = Vector3(0,0,90)
 	add_child(roof)
-	box_obj("Door", Vector3(0, 1.6, -2.03), Vector3(2.2, 3.2, 0.25), Color("38241d"), self, false)
 
-	box_obj("CommandDeck", Vector3(0, 10.6, 3), Vector3(12.5, 0.55, 8.5), Color("765031"), self, true)
-	for x in [-5.7, 5.7]:
-		box_obj("CommandRail", Vector3(x, 11.55, 3), Vector3(0.25, 1.7, 8.0), Color("51341f"), self, false)
-	for z in [-0.6, 6.6]:
-		box_obj("CommandRail", Vector3(0, 11.55, z), Vector3(11.5, 1.7, 0.25), Color("51341f"), self, false)
+	for offset in [Vector3(-11.5,0,-8.5),Vector3(11.5,0,-8.5),Vector3(-11.5,0,8.5),Vector3(11.5,0,8.5)]:
+		cyl_obj("CastleTurret", Vector3(offset.x,9,-4+offset.z), 2.2, 10, Color("e7e0d2"), self, true)
 
-	box_obj("LadderLeft", Vector3(6.55, 4.8, 7.0), Vector3(0.18, 8.0, 0.18), Color("8a6339"), self, false)
-	box_obj("LadderRight", Vector3(7.25, 4.8, 7.0), Vector3(0.18, 8.0, 0.18), Color("8a6339"), self, false)
-	for y in range(1, 9):
-		box_obj("LadderStep", Vector3(6.9, float(y), 7.0), Vector3(0.9, 0.12, 0.18), Color("9b7144"), self, false)
-
-	box_obj("CommandTable", Vector3(0, 11.35, 3.0), Vector3(3.0, 0.25, 1.5), Color("4f3524"), self, false)
-	box_obj("CommandSeat", Vector3(0, 11.25, 5.1), Vector3(1.2, 0.7, 1.2), Color("3f2b20"), self, false)
+	# Command terrace: hero starts here and gets the tactical overview.
+	box_obj("CommandDeck", Vector3(0,9.55,3), Vector3(13,0.9,10), Color("b0a89a"), self, true)
+	box_obj("CommandTable", Vector3(0,10.35,3), Vector3(3.2,0.25,1.6), Color("55402e"), self, false)
 
 	var beacon := OmniLight3D.new()
-	beacon.light_color = Color("ffd58a")
+	beacon.light_color = Color("ffd08a")
 	beacon.light_energy = 2.2
-	beacon.omni_range = 12.0
-	beacon.position = Vector3(0, 12.5, 3)
+	beacon.omni_range = 15
+	beacon.position = Vector3(0,12.5,3)
 	add_child(beacon)
 
+	# Central banner / upgrade point.
+	var pole := MeshInstance3D.new()
+	var pole_mesh := CylinderMesh.new()
+	pole_mesh.top_radius = 0.12
+	pole_mesh.bottom_radius = 0.12
+	pole_mesh.height = 6.5
+	pole.mesh = pole_mesh
+	pole.position = Vector3(0,13.0,3)
+	pole.material_override = mat(Color("363434"),0.6,0.2)
+	add_child(pole)
+	var flag := MeshInstance3D.new()
+	var flag_mesh := BoxMesh.new()
+	flag_mesh.size = Vector3(3.6,2.0,0.12)
+	flag.mesh = flag_mesh
+	flag.position = Vector3(1.8,15.0,3)
+	flag.material_override = mat(Color("244b78"))
+	add_child(flag)
+
 func build_palisade() -> void:
-	for x in range(-20, 21, 2):
-		if abs(x) > 4:
-			cyl_obj("Stake", Vector3(x, 2.2, -18), 0.45, 4.4, Color("6b452b"))
-		cyl_obj("Stake", Vector3(x, 2.2, 18), 0.45, 4.4, Color("6b452b"))
-	for z in range(-16, 17, 2):
-		cyl_obj("Stake", Vector3(-20, 2.2, z), 0.45, 4.4, Color("6b452b"))
-		cyl_obj("Stake", Vector3(20, 2.2, z), 0.45, 4.4, Color("6b452b"))
-	box_obj("GateL", Vector3(-4, 3, -18), Vector3(1.4, 6, 1.4), Color("51341f"))
-	box_obj("GateR", Vector3(4, 3, -18), Vector3(1.4, 6, 1.4), Color("51341f"))
+	# Stone walls and continuous walkable parapets.
+	box_obj("NorthWall", Vector3(0,6.3,-20), Vector3(50,7,3), Color("89857a"))
+	box_obj("SouthWallL", Vector3(-14.5,6.3,16), Vector3(21,7,3), Color("89857a"))
+	box_obj("SouthWallR", Vector3(14.5,6.3,16), Vector3(21,7,3), Color("89857a"))
+	box_obj("WestWall", Vector3(-25,6.3,-2), Vector3(3,7,36), Color("89857a"))
+	box_obj("EastWall", Vector3(25,6.3,-2), Vector3(3,7,36), Color("89857a"))
+
+	box_obj("NorthWalk", Vector3(0,9.55,-20), Vector3(52,0.9,5.2), Color("a09889"))
+	box_obj("SouthWalkL", Vector3(-14,9.55,16), Vector3(22,0.9,5.2), Color("a09889"))
+	box_obj("SouthWalkR", Vector3(14,9.55,16), Vector3(22,0.9,5.2), Color("a09889"))
+	box_obj("WestWalk", Vector3(-25,9.55,-2), Vector3(5.2,0.9,38), Color("a09889"))
+	box_obj("EastWalk", Vector3(25,9.55,-2), Vector3(5.2,0.9,38), Color("a09889"))
+
+	# Four round bastions. Their tops line up exactly with the wall walks.
+	for p in [Vector3(-25,8,-20),Vector3(25,8,-20),Vector3(-25,8,16),Vector3(25,8,16)]:
+		cyl_obj("CornerBastion", p, 5.2, 16, Color("817d73"), self, true)
+		cyl_obj("BastionTop", Vector3(p.x,9.55,p.z), 5.5, 0.9, Color("a49c8c"), self, true)
+
+	# Elevated links from the command terrace to every side.
+	box_obj("LinkNorth", Vector3(0,9.55,-14), Vector3(5,0.9,12), Color("a09889"))
+	box_obj("LinkSouth", Vector3(0,9.55,10), Vector3(5,0.9,12), Color("a09889"))
+	box_obj("LinkWest", Vector3(-18,9.55,3), Vector3(16,0.9,5), Color("a09889"))
+	box_obj("LinkEast", Vector3(18,9.55,3), Vector3(16,0.9,5), Color("a09889"))
+
+	# South gate facing the Danube bridge.
+	box_obj("GateLeft", Vector3(-6.5,6,16), Vector3(5,6,4), Color("77736b"))
+	box_obj("GateRight", Vector3(6.5,6,16), Vector3(5,6,4), Color("77736b"))
+	box_obj("GateTop", Vector3(0,10.8,16), Vector3(8,2,4), Color("77736b"))
+
+	# Inner access ramp so the hero can leave the walls later.
+	box_obj("InnerRamp", Vector3(-15,6.5,8), Vector3(5,1,17), Color("8f8778"), self, true, Vector3(-22,0,0))
 
 func build_tree(pos: Vector3, scale_factor: float) -> void:
 	cyl_obj("TreeTrunk", pos + Vector3(0, 2 * scale_factor, 0), 0.45 * scale_factor, 4 * scale_factor, Color("5a3c24"), self, true)
@@ -260,7 +346,8 @@ func spawn_player() -> void:
 	player = CharacterBody3D.new()
 	player.name = "Player"
 	player.set_script(load("res://scripts/player.gd"))
-	player.position = Vector3(0, 1, 11)
+	player.position = Vector3(0, 11.2, 3)
+	player.add_to_group("player")
 
 	var collision := CollisionShape3D.new()
 	var shape := CapsuleShape3D.new()
@@ -293,7 +380,7 @@ func spawn_player() -> void:
 
 	var spring_arm := SpringArm3D.new()
 	spring_arm.name = "SpringArm"
-	spring_arm.spring_length = 5.2
+	spring_arm.spring_length = 6.4
 	spring_arm.collision_mask = 1
 	camera_pivot.add_child(spring_arm)
 
@@ -349,10 +436,10 @@ func build_hud() -> void:
 
 func update_hud() -> void:
 	if hud_label != null:
-		hud_label.text = "THE LAST TAVERN\nBase %d HP    Gold %d    Wave %d    Enemies %d" % [base_hp, gold, wave, enemies_left]
+		hud_label.text = "DEFENCE OF THE DANUBE\nCastle Lv.%d   HP %d/%d   Gold %d   Wave %d   Enemies %d" % [castle_level, base_hp, base_max_hp, gold, wave, enemies_left]
 
 func schedule_first_wave() -> void:
-	wave_banner.text = "Prepare the defenses"
+	wave_banner.text = "THE DANUBE BRIDGE IS QUIET\nPrepare the city defenses"
 	await get_tree().create_timer(4.0).timeout
 	start_wave()
 
@@ -366,9 +453,9 @@ func start_wave() -> void:
 	var is_boss_wave := wave % 5 == 0
 	for countdown in [3, 2, 1]:
 		if is_boss_wave:
-			wave_banner.text = "BOSS WAVE %d\nBegins in %d" % [wave, countdown]
+			wave_banner.text = "BOSS WAVE %d\nCrossing the Danube in %d" % [wave, countdown]
 		else:
-			wave_banner.text = "WAVE %d\nBegins in %d" % [wave, countdown]
+			wave_banner.text = "WAVE %d\nEnemy columns approaching the bridge — %d" % [wave, countdown]
 		await get_tree().create_timer(1.0).timeout
 
 	wave_banner.text = "BOSS WAVE %d" % wave if is_boss_wave else "WAVE %d" % wave
@@ -382,7 +469,7 @@ func start_wave() -> void:
 
 	if is_boss_wave:
 		spawn_enemy(spawn_points[wave % spawn_points.size()], true)
-		wave_banner.text = "BOSS HAS ENTERED THE BATTLE"
+		wave_banner.text = "WARLORD ON THE BRIDGE!"
 		await get_tree().create_timer(2.2).timeout
 		wave_banner.text = ""
 
@@ -421,7 +508,7 @@ func spawn_enemy(pos: Vector3, boss: bool = false) -> void:
 	enemy.add_child(marker)
 
 	enemy.set("main_ref", self)
-	enemy.set("target_pos", Vector3(0, 0, -14))
+	enemy.set("target_pos", Vector3(0, 3.4, 11))
 	enemy.set("hp", 280 + wave * 25 if boss else 35 + wave * 9)
 	enemy.set("speed", 2.0 if boss else 3.2)
 	enemy.set("damage", 35 if boss else 8 + wave)
@@ -431,7 +518,7 @@ func spawn_enemy(pos: Vector3, boss: bool = false) -> void:
 	update_hud()
 
 func enemy_died(reward: int) -> void:
-	enemies_left = max(0, enemies_left - 1)
+	enemies_left = maxi(0, enemies_left - 1)
 	gold += reward
 	update_hud()
 	if enemies_left == 0 and not wave_active:
@@ -441,43 +528,54 @@ func schedule_next_wave() -> void:
 	if next_wave_scheduled or base_hp <= 0:
 		return
 	next_wave_scheduled = true
-	wave_banner.text = "WAVE CLEARED\nNext assault in 6 seconds"
-	await get_tree().create_timer(6.0).timeout
+	wave_banner.text = "BRIDGE SECURED\nNext assault in 7 seconds"
+	await get_tree().create_timer(7.0).timeout
 	wave_banner.text = ""
 	next_wave_scheduled = false
 	start_wave()
 
 func damage_base(amount: int) -> void:
-	base_hp = max(0, base_hp - amount)
+	base_hp = maxi(0, base_hp - amount)
 	update_hud()
 	if base_hp <= 0:
-		wave_banner.text = "THE TAVERN HAS FALLEN"
+		wave_banner.text = "BRATISLAVA HAS FALLEN"
 		prompt_label.text = "Press Esc to release the cursor."
 
+func get_castle_upgrade_cost() -> int:
+	return 180 + castle_level * 120
+
+func get_castle_tower_multiplier() -> float:
+	return 1.0 + float(castle_level - 1) * 0.12
+
 func get_command_interaction(player_pos: Vector3) -> Dictionary:
-	if player_pos.distance_to(command_ladder_pos) < 3.0:
+	if player_pos.distance_to(command_top_pos) < 4.5:
+		if castle_level >= 6:
+			return {
+				"kind": "castle_max",
+				"text": "Castle level 6 — maximum   |   C — tactical overview"
+			}
+		var cost: int = get_castle_upgrade_cost()
 		return {
-			"kind": "climb",
-			"text": "E — climb to the command deck"
-		}
-	if is_player_on_command_deck(player_pos) and player_pos.distance_to(command_top_pos) < 7.0:
-		return {
-			"kind": "descend",
-			"text": "E — descend from command deck   |   C — tactical overview"
+			"kind": "castle_upgrade",
+			"text": "E — reinforce castle to level %d (%d gold)   |   C — tactical overview" % [castle_level + 1, cost]
 		}
 	return {}
 
-func use_command_interaction(player_node: CharacterBody3D, info: Dictionary) -> void:
-	var kind: String = info.get("kind", "")
-	if kind == "climb":
-		player_node.global_position = command_top_pos
-		player_node.velocity = Vector3.ZERO
-		prompt_label.text = "Command deck: press C for tactical overview."
-	elif kind == "descend":
-		player_node.global_position = command_ladder_pos + Vector3(-1.0, 0.2, 0.0)
-		player_node.velocity = Vector3.ZERO
-		if bool(player_node.get("overview_mode")) and player_node.has_method("toggle_overview"):
-			player_node.toggle_overview()
+func use_command_interaction(_player_node: CharacterBody3D, info: Dictionary) -> void:
+	var kind: String = str(info.get("kind", ""))
+	if kind == "castle_upgrade":
+		var cost: int = get_castle_upgrade_cost()
+		if gold < cost:
+			prompt_label.text = "Need %d gold to reinforce the castle." % cost
+			return
+		gold -= cost
+		castle_level += 1
+		base_max_hp += 140
+		base_hp = mini(base_max_hp, base_hp + 180)
+		update_hud()
+		prompt_label.text = "Castle reinforced to level %d. All towers gain strength." % castle_level
+	elif kind == "castle_max":
+		prompt_label.text = "The castle is already at maximum reinforcement."
 
 func is_player_on_command_deck(player_pos: Vector3) -> bool:
-	return player_pos.y > 9.5 and abs(player_pos.x) < 7.5 and player_pos.z > -2.0 and player_pos.z < 8.5
+	return player_pos.y > 9.0 and player_pos.distance_to(command_top_pos) < 8.0
