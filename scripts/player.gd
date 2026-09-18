@@ -31,7 +31,7 @@ func _unhandled_input(event: InputEvent) -> void:
 	if event is InputEventMouseMotion and Input.mouse_mode == Input.MOUSE_MODE_CAPTURED:
 		rotate_y(-event.relative.x * mouse_sens)
 		if pivot != null:
-			pivot.rotation.x = clamp(
+			pivot.rotation.x = clampf(
 				pivot.rotation.x - event.relative.y * mouse_sens,
 				deg_to_rad(-70.0),
 				deg_to_rad(55.0)
@@ -45,13 +45,13 @@ func _unhandled_input(event: InputEvent) -> void:
 	if event.is_action_pressed("toggle_camera") and spring != null:
 		overview_mode = false
 		first_person = not first_person
-		spring.spring_length = 0.15 if first_person else 5.2
+		spring.spring_length = 0.2 if first_person else 6.4
 
 	if event.is_action_pressed("overview"):
 		toggle_overview()
 
 func _physics_process(delta: float) -> void:
-	attack_cd = max(0.0, attack_cd - delta)
+	attack_cd = maxf(0.0, attack_cd - delta)
 	if not is_on_floor():
 		velocity.y -= gravity_force * delta
 	else:
@@ -120,13 +120,13 @@ func toggle_overview() -> void:
 	if not main_ref.is_player_on_command_deck(global_position):
 		var prompt = main_ref.get("prompt_label")
 		if prompt != null:
-			prompt.text = "Climb to the command deck first to use overview mode."
+			prompt.text = "Return to the central command terrace to use tactical overview."
 		return
 
 	overview_mode = not overview_mode
 	first_person = false
 	if overview_mode:
-		spring.spring_length = 21.0
+		spring.spring_length = 34.0
 		pivot.rotation.x = deg_to_rad(-47.0)
 	else:
 		spring.spring_length = 5.2
