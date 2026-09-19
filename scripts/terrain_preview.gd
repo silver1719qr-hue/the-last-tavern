@@ -3,6 +3,7 @@ extends Node3D
 const CastleModels = preload("res://scripts/castle_models.gd")
 const TerrainSurface = preload("res://scripts/terrain_surface.gd")
 const SiegeRoute = preload("res://scripts/siege_route.gd")
+const TacticalGameplay = preload("res://scripts/tactical_gameplay.gd")
 
 @onready var terrain_root: Node3D = $BratislavaRealTerrain
 @onready var camera: Camera3D = $Camera3D
@@ -54,7 +55,11 @@ func _ready() -> void:
 
 	CastleModels.build_historical_bridges(self)
 
-	SiegeRoute.build(self, terrain_root, true)
+	var route_root := SiegeRoute.build(self, terrain_root, false)
+	var tactical := TacticalGameplay.new()
+	tactical.name = "TacticalGameplay"
+	add_child(tactical)
+	tactical.setup(terrain_root, route_root, camera)
 
 	stats["castle"] = 2
 	stats["road"] = 1
@@ -192,7 +197,7 @@ func _setup_overlay(stats: Dictionary) -> void:
 	box.add_child(title)
 
 	var status := Label.new()
-	status.text = "AUTO ROAD REVIEW — TERRAIN-AWARE SWITCHBACK\nRoad is generated automatically from the real terrain\n19.3 × 18.9 km | relief ×%.1f | real DEM/OSM\nTerrain: %d | water: %d | castles: %d | road: %d" % [
+	status.text = "TACTICAL DEFENSE TEST — NO VISIBLE ROAD\nEnemies use a hidden bridge-to-castle route\n19.3 × 18.9 km | relief ×%.1f | real DEM/OSM\nTerrain: %d | water: %d | castles: %d | road: %d" % [
 		VERTICAL_REVIEW_SCALE, stats["terrain"], stats["water"], stats["castle"], stats["road"]
 	]
 	status.add_theme_font_size_override("font_size", 11)
