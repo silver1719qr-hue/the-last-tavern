@@ -6,8 +6,8 @@ extends RefCounted
 
 const TerrainSurface = preload("res://scripts/terrain_surface.gd")
 
-const START_XZ := Vector2(2262.0, 5480.0)
-const GOAL_XZ := Vector2(2440.0, 4720.0)
+const START_XZ := Vector2(2262.0, 5004.0)
+const GOAL_XZ := Vector2(2304.5, 4710.0)
 
 const ROAD_WIDTH := 12.0
 const ROAD_OFFSET := 0.45
@@ -74,117 +74,27 @@ static func _generate_route(sampler) -> Array[Vector3]:
 	var forward := delta.normalized()
 	var lateral := Vector2(-forward.y, forward.x)
 
-	# Length needed to keep the average climb comfortable.
+	# Build a true bridge-to-gate serpentine. The endpoints are exact; only the
+	# middle of the road swings sideways. This prevents the old "hook" that
+	# stopped beside the castle and failed to meet the bridge.
 	var rise := absf(goal.y - start.y)
-	var target_length := maxf(direct_length, rise / MAX_TARGET_GRADE)
-	var forward_step := direct_length / float(SWITCHBACK_COUNT)
-	var target_segment := target_length / float(SWITCHBACK_COUNT)
-	var lateral_swing := MIN_LATERAL_SWING
-	if target_segment > forward_step:
-		lateral_swing = 0.5 * sqrt(maxf(target_segment * target_segment - forward_step * forward_step, 0.0))
-	lateral_swing = clampf(lateral_swing, MIN_LATERAL_SWING, MAX_LATERAL_SWING)
-
-	var anchors: Array[Vector2] = []
-	anchors.append(start_2d)
-	for i in range(1, SWITCHBACK_COUNT):
-		var t := float(i) / float(SWITCHBACK_COUNT)
-		var taper := sin(PI * t)
-		var side := -1.0 if i % 2 == 0 else 1.0
-		var p := start_2d.lerp(goal_2d, t) + lateral * lateral_swing * taper * side
-		anchors.append(p)
-	anchors.append(goal_2d)
-
-	# Chaikin smoothing turns the zig-zag into broad cart-friendly bends.
-	var smooth := anchors
-	for _pass in range(3):
-		var next: Array[Vector2] = []
-		next.append(smooth[0])
-		for i in range(smooth.size() - 1):
-			var a := smooth[i]
-			var b := smooth[i + 1]
-			next.append(a.lerp(b, 0.25))
-			next.append(a.lerp(b, 0.75))
-		next.append(smooth[-1])
-		smooth = next
+	var turns := clampi(roundi(rise / 28.0), 3, 5)
+	var amplitude := clampf(rise * 1.35, 85.0, 170.0)
+	var estimated_length := direct_length + float(turns) * amplitude * 3.5
+	var samples := maxi(180, ceili(estimated_length / SAMPLE_SPACING))
 
 	var points: Array[Vector3] = []
-	for i in range(smooth.size() - 1):
-		var a := smooth[i]
-		var b := smooth[i + 1]
-		var length := a.distance_to(b)
-		var steps := maxi(1, ceili(length / SAMPLE_SPACING))
-		for s in range(steps):
-			var t := float(s) / float(steps)
-			var p := a.lerp(b, t)
-			points.append(sampler.point_world_at(p.x, p.y, ROAD_OFFSET))
-	points.append(goal)
+	for i in range(samples + 1):
+		var t := float(i) / float(samples)
+		var base := start_2d.lerp(goal_2d, t)
+		var envelope := sin(PI * t)
+		var phase := TAU * float(turns) * t
+		var swing := sin(phase) * amplitude * envelope
+		var p := base + lateral * swing
+		points.append(sampler.point_world_at(p.x, p.y, ROAD_OFFSET))
+
+	# Force exact contact with the wooden bridge and the castle east portal.
+	points[0] = start
+	points[-1] = goal
 	return _dedupe(points)
 
-
-static func _dedupe(points: Array[Vector3]) -> Array[Vector3]:
-	var result: Array[Vector3] = []
-	for point in points:
-		if result.is_empty() or result[-1].distance_to(point) > 0.25:
-			result.append(point)
-	return result
-
-
-static func _build_road_mesh(points: Array[Vector3], sampler) -> ArrayMesh:
-	var vertices := PackedVector3Array()
-	var normals := PackedVector3Array()
-	var uvs := PackedVector2Array()
-	var indices := PackedInt32Array()
-	var half_width := ROAD_WIDTH * 0.5
-	var distance_along := 0.0
-
-	for i in range(points.size()):
-		var prev := points[maxi(i - 1, 0)]
-		var next := points[mini(i + 1, points.size() - 1)]
-		var tangent := Vector2(next.x - prev.x, next.z - prev.z).normalized()
-		if tangent.length_squared() < 0.001:
-			tangent = Vector2(0.0, -1.0)
-		var right := Vector2(-tangent.y, tangent.x)
-
-		if i > 0:
-			distance_along += points[i - 1].distance_to(points[i])
-
-		var left_xz := Vector2(points[i].x, points[i].z) - right * half_width
-		var right_xz := Vector2(points[i].x, points[i].z) + right * half_width
-		var left: Vector3 = sampler.point_world_at(left_xz.x, left_xz.y, ROAD_OFFSET)
-		var right_point: Vector3 = sampler.point_world_at(right_xz.x, right_xz.y, ROAD_OFFSET)
-
-		vertices.append(left)
-		vertices.append(right_point)
-		normals.append(Vector3.UP)
-		normals.append(Vector3.UP)
-		uvs.append(Vector2(0.0, distance_along / 5.0))
-		uvs.append(Vector2(1.0, distance_along / 5.0))
-
-	for i in range(points.size() - 1):
-		var base := i * 2
-		indices.append(base)
-		indices.append(base + 2)
-		indices.append(base + 1)
-		indices.append(base + 1)
-		indices.append(base + 2)
-		indices.append(base + 3)
-
-	var arrays := []
-	arrays.resize(Mesh.ARRAY_MAX)
-	arrays[Mesh.ARRAY_VERTEX] = vertices
-	arrays[Mesh.ARRAY_NORMAL] = normals
-	arrays[Mesh.ARRAY_TEX_UV] = uvs
-	arrays[Mesh.ARRAY_INDEX] = indices
-
-	var mesh := ArrayMesh.new()
-	mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
-	return mesh
-
-
-static func _road_material() -> StandardMaterial3D:
-	var material := StandardMaterial3D.new()
-	material.albedo_color = Color("#716b5d")
-	material.roughness = 0.96
-	material.metallic = 0.0
-	material.cull_mode = BaseMaterial3D.CULL_DISABLED
-	return material
