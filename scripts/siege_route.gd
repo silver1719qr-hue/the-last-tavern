@@ -98,3 +98,72 @@ static func _generate_route(sampler) -> Array[Vector3]:
 	points[-1] = goal
 	return _dedupe(points)
 
+
+
+static func _dedupe(points: Array[Vector3]) -> Array[Vector3]:
+	var result: Array[Vector3] = []
+	for point in points:
+		if result.is_empty() or result[-1].distance_to(point) > 0.25:
+			result.append(point)
+	return result
+
+
+static func _build_road_mesh(points: Array[Vector3], sampler) -> ArrayMesh:
+	var vertices := PackedVector3Array()
+	var normals := PackedVector3Array()
+	var uvs := PackedVector2Array()
+	var indices := PackedInt32Array()
+	var half_width := ROAD_WIDTH * 0.5
+	var distance_along := 0.0
+
+	for i in range(points.size()):
+		var prev := points[maxi(i - 1, 0)]
+		var next := points[mini(i + 1, points.size() - 1)]
+		var tangent := Vector2(next.x - prev.x, next.z - prev.z).normalized()
+		if tangent.length_squared() < 0.001:
+			tangent = Vector2(0.0, -1.0)
+		var right := Vector2(-tangent.y, tangent.x)
+
+		if i > 0:
+			distance_along += points[i - 1].distance_to(points[i])
+
+		var left_xz := Vector2(points[i].x, points[i].z) - right * half_width
+		var right_xz := Vector2(points[i].x, points[i].z) + right * half_width
+		var left: Vector3 = sampler.point_world_at(left_xz.x, left_xz.y, ROAD_OFFSET)
+		var right_point: Vector3 = sampler.point_world_at(right_xz.x, right_xz.y, ROAD_OFFSET)
+
+		vertices.append(left)
+		vertices.append(right_point)
+		normals.append(Vector3.UP)
+		normals.append(Vector3.UP)
+		uvs.append(Vector2(0.0, distance_along / 5.0))
+		uvs.append(Vector2(1.0, distance_along / 5.0))
+
+	for i in range(points.size() - 1):
+		var base := i * 2
+		indices.append(base)
+		indices.append(base + 2)
+		indices.append(base + 1)
+		indices.append(base + 1)
+		indices.append(base + 2)
+		indices.append(base + 3)
+
+	var arrays := []
+	arrays.resize(Mesh.ARRAY_MAX)
+	arrays[Mesh.ARRAY_VERTEX] = vertices
+	arrays[Mesh.ARRAY_NORMAL] = normals
+	arrays[Mesh.ARRAY_TEX_UV] = uvs
+	arrays[Mesh.ARRAY_INDEX] = indices
+
+	var mesh := ArrayMesh.new()
+	mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
+	return mesh
+
+
+static func _road_material() -> StandardMaterial3D:
+	var material := StandardMaterial3D.new()
+	material.albedo_color = Color("#716b5d")
+	material.roughness = 0.96
+	material.metallic = 0.0
+	material.cull_mode = BaseMaterial3D.CULL_DISABLED
+	return material
