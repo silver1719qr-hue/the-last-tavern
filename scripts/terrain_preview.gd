@@ -3,7 +3,6 @@ extends Node3D
 const CastleModels = preload("res://scripts/castle_models.gd")
 const TerrainSurface = preload("res://scripts/terrain_surface.gd")
 const SiegeRoute = preload("res://scripts/siege_route.gd")
-const BlenderRoadScene = preload("res://assets/world/bratislava_castle_road.glb")
 
 @onready var terrain_root: Node3D = $BratislavaRealTerrain
 @onready var camera: Camera3D = $Camera3D
@@ -43,9 +42,8 @@ func _ready() -> void:
 	var stats := {"mesh": 0, "hidden": 0, "terrain": 0, "water": 0, "castle": 0, "road": 0}
 	_prepare_meshes(terrain_root, stats)
 
-	# Keep this review scene intentionally narrow: real terrain/water, landmark
-	# castles, the existing Danube bridge and one Blender-authored road asset.
-	# No walls, gates, tower slots, anchors, enemies or gameplay are instantiated.
+	# Review scene: real terrain/water, landmark castles, historical bridge and
+	# one automatically generated terrain-aware medieval road.
 	var surface_sampler := TerrainSurface.new(terrain_root)
 
 	var bratislava_castle := CastleModels.build_bratislava(self)
@@ -56,10 +54,7 @@ func _ready() -> void:
 
 	CastleModels.build_historical_bridges(self)
 
-	var road_model := BlenderRoadScene.instantiate() as Node3D
-	road_model.name = "Bratislava_Blender_Road_GLTF"
-	add_child(road_model)
-	SiegeRoute.build(self, terrain_root, false)
+	SiegeRoute.build(self, terrain_root, true)
 
 	stats["castle"] = 2
 	stats["road"] = 1
@@ -197,7 +192,7 @@ func _setup_overlay(stats: Dictionary) -> void:
 	box.add_child(title)
 
 	var status := Label.new()
-	status.text = "BLENDER ROAD REVIEW — FIXED GLB ASSET\nNo runtime procedural road / walls / gates / towers / enemies\n19.3 × 18.9 km | relief ×%.1f | real DEM/OSM\nTerrain: %d | water: %d | castles: %d | road: %d" % [
+	status.text = "AUTO ROAD REVIEW — TERRAIN-AWARE SWITCHBACK\nRoad is generated automatically from the real terrain\n19.3 × 18.9 km | relief ×%.1f | real DEM/OSM\nTerrain: %d | water: %d | castles: %d | road: %d" % [
 		VERTICAL_REVIEW_SCALE, stats["terrain"], stats["water"], stats["castle"], stats["road"]
 	]
 	status.add_theme_font_size_override("font_size", 11)
