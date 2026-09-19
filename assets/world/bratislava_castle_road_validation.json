@@ -1,0 +1,29 @@
+{
+  "status": "ROAD_VALIDATION_OK",
+  "terrain_mesh": "Terrain + Terrain-col",
+  "terrain_vertices": 135045,
+  "terrain_polygons": 163840,
+  "vertical_scale": 1.6,
+  "sample_spacing_m": 2.5,
+  "sample_count": 683,
+  "road_width_m": 12.0,
+  "target_clearance_m": 0.28,
+  "max_support_clearance_error_m": 2.4424906541753444e-15,
+  "terrain_sample_count": 500,
+  "bridge_sample_count": 183,
+  "start_godot": [
+    2262.0,
+    30.00656,
+    5480.0
+  ],
+  "end_godot": [
+    2440.0,
+    122.90158,
+    4720.0
+  ],
+  "self_intersection_count": 0,
+  "max_vertical_step_m": 0.8740234375,
+  "max_grade_percent": 34.96552550566548,
+  "min_top_above_terrain_m": 0.28000000000000114,
+  "max_top_above_terrain_m": 11.990742187500004
+}

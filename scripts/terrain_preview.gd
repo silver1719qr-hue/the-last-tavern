@@ -2,6 +2,8 @@ extends Node3D
 
 const CastleModels = preload("res://scripts/castle_models.gd")
 const TerrainSurface = preload("res://scripts/terrain_surface.gd")
+const SiegeRoute = preload("res://scripts/siege_route.gd")
+const BlenderRoadScene = preload("res://assets/world/bratislava_castle_road.glb")
 
 @onready var terrain_root: Node3D = $BratislavaRealTerrain
 @onready var camera: Camera3D = $Camera3D
@@ -23,6 +25,11 @@ var water_mat: StandardMaterial3D
 
 func _ready() -> void:
 	terrain_root.scale = Vector3(1.0, VERTICAL_REVIEW_SCALE, 1.0)
+	if DisplayServer.get_name() == "headless":
+		# CI validates the imported resources with dedicated scripts. Avoid asking
+		# Godot's dummy renderer to prepare visible GLB meshes without GPU storage.
+		terrain_root.visible = false
+		return
 	terrain_mat = _make_terrain_material()
 	water_mat = _lit_material(Color("#176f9e"), 0.24, 0.05)
 
@@ -33,27 +40,34 @@ func _ready() -> void:
 		elif node is Camera3D:
 			node.current = false
 
-	var stats := {"mesh": 0, "hidden": 0, "terrain": 0, "water": 0, "castle": 0}
+	var stats := {"mesh": 0, "hidden": 0, "terrain": 0, "water": 0, "castle": 0, "road": 0}
 	_prepare_meshes(terrain_root, stats)
 
-	# CLEAN BASELINE: only the real terrain/water plus the two landmark castles.
-	# Road, walls, gates, tower slots, anchors, enemies and gameplay are preserved
-	# in the repository but are not instantiated in this scene.
-	if DisplayServer.get_name() != "headless":
-		var surface_sampler := TerrainSurface.new(terrain_root)
+	# Keep this review scene intentionally narrow: real terrain/water, landmark
+	# castles, the existing Danube bridge and one Blender-authored road asset.
+	# No walls, gates, tower slots, anchors, enemies or gameplay are instantiated.
+	var surface_sampler := TerrainSurface.new(terrain_root)
 
-		var bratislava_castle := CastleModels.build_bratislava(self)
-		bratislava_castle.global_position.y = surface_sampler.height_world_at(2260.8, 4704.0) + 0.6
+	var bratislava_castle := CastleModels.build_bratislava(self)
+	bratislava_castle.global_position.y = surface_sampler.height_world_at(2260.8, 4704.0) + 0.6
 
-		var devin_castle := CastleModels.build_devin(self)
-		devin_castle.global_position.y = surface_sampler.height_world_at(-6722.0, 1321.0) + 0.6
+	var devin_castle := CastleModels.build_devin(self)
+	devin_castle.global_position.y = surface_sampler.height_world_at(-6722.0, 1321.0) + 0.6
 
-		stats["castle"] = 2
+	CastleModels.build_historical_bridges(self)
+
+	var road_model := BlenderRoadScene.instantiate() as Node3D
+	road_model.name = "Bratislava_Blender_Road_GLTF"
+	add_child(road_model)
+	SiegeRoute.build(self, terrain_root, false)
+
+	stats["castle"] = 2
+	stats["road"] = 1
 
 	_setup_environment()
 	_setup_landmark_labels()
 	_setup_overlay(stats)
-	set_oblique_view()
+	set_road_review_view()
 
 
 func _make_terrain_material() -> ShaderMaterial:
@@ -183,8 +197,8 @@ func _setup_overlay(stats: Dictionary) -> void:
 	box.add_child(title)
 
 	var status := Label.new()
-	status.text = "CLEAN BASELINE — TERRAIN + LANDMARK CASTLES ONLY\nNo road / walls / gates / towers / anchors / enemies\n19.3 × 18.9 km | relief ×%.1f | real DEM/OSM\nTerrain: %d | water: %d | castles shown: %d" % [
-		VERTICAL_REVIEW_SCALE, stats["terrain"], stats["water"], stats["castle"]
+	status.text = "BLENDER ROAD REVIEW — FIXED GLB ASSET\nNo runtime procedural road / walls / gates / towers / enemies\n19.3 × 18.9 km | relief ×%.1f | real DEM/OSM\nTerrain: %d | water: %d | castles: %d | road: %d" % [
+		VERTICAL_REVIEW_SCALE, stats["terrain"], stats["water"], stats["castle"], stats["road"]
 	]
 	status.add_theme_font_size_override("font_size", 11)
 	box.add_child(status)
@@ -201,7 +215,7 @@ func _setup_overlay(stats: Dictionary) -> void:
 	buttons.add_child(top_button)
 
 	var help := Label.new()
-	help.text = "Mouse/WASD • 1 Bratislava Castle • 2 Devín • 3 Danube • 4 Morava • T top • R overview"
+	help.text = "Mouse/WASD • 1 Castle • 2 Devín • 3 Danube • 4 Morava • 5 road • T top • R region"
 	help.add_theme_font_size_override("font_size", 11)
 	box.add_child(help)
 
@@ -297,13 +311,7 @@ func _unhandled_input(event: InputEvent) -> void:
 			pitch = deg_to_rad(-27.0)
 			_update_camera()
 		elif event.keycode == KEY_5:
-			focus = Vector3(2420.0, 105.0, 4890.0)
-			distance = 1480.0
-			yaw = 0.0
-			pitch = deg_to_rad(-88.0)
-			_update_camera()
-		elif event.keycode == KEY_6:
-			set_anchor_review_view()
+			set_road_review_view()
 
 
 func _process(delta: float) -> void:
