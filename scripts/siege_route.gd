@@ -1,26 +1,23 @@
 extends RefCounted
 
-# Automatic terrain-aware siege road.
-# The road is generated at runtime from the real Bratislava terrain:
-# bridge-side start -> terrain-following switchbacks -> castle gate.
+# Hidden gameplay route only. No visual road is generated.
+# Enemies start south of the Danube, cross the existing wooden bridge, then
+# continue over the real terrain to Bratislava Castle.
 
 const TerrainSurface = preload("res://scripts/terrain_surface.gd")
 
-const START_XZ := Vector2(2262.0, 5004.0)
+const ROAD_OFFSET := 1.15
+const SAMPLE_SPACING := 4.0
+const BRIDGE_X := 2262.0
+const BRIDGE_SOUTH_Z := 5480.0
+const BRIDGE_NORTH_Z := 5004.0
+const BRIDGE_DECK_Y := 43.0
 const GOAL_XZ := Vector2(2304.5, 4710.0)
 
-const ROAD_WIDTH := 12.0
-const ROAD_OFFSET := 0.45
-const SAMPLE_SPACING := 4.0
-const MAX_TARGET_GRADE := 0.07
-const SWITCHBACK_COUNT := 6
-const MIN_LATERAL_SWING := 90.0
-const MAX_LATERAL_SWING := 260.0
 
-
-static func build(parent: Node3D, terrain_root: Node3D, create_visuals: bool = true) -> Node3D:
+static func build(parent: Node3D, terrain_root: Node3D, _create_visuals: bool = false) -> Node3D:
 	var root := Node3D.new()
-	root.name = "Bratislava_Auto_Terrain_Road"
+	root.name = "Bratislava_Hidden_Enemy_Route"
 	parent.add_child(root)
 	root.top_level = true
 	root.global_transform = Transform3D.IDENTITY
@@ -36,16 +33,8 @@ static func build(parent: Node3D, terrain_root: Node3D, create_visuals: bool = t
 		path.curve.add_point(point)
 	root.add_child(path)
 
-	if create_visuals:
-		var road_mesh := MeshInstance3D.new()
-		road_mesh.name = "Medieval_Cobblestone_Road"
-		road_mesh.mesh = _build_road_mesh(path_points, sampler)
-		road_mesh.material_override = _road_material()
-		road_mesh.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_ON
-		root.add_child(road_mesh)
-
 	var spawn := Marker3D.new()
-	spawn.name = "EnemySpawn_BridgeSide"
+	spawn.name = "EnemySpawn_SouthBank"
 	spawn.position = path_points[0]
 	root.add_child(spawn)
 
@@ -54,50 +43,44 @@ static func build(parent: Node3D, terrain_root: Node3D, create_visuals: bool = t
 	goal.position = path_points[-1]
 	root.add_child(goal)
 
-	root.set_meta("source", "automatic terrain-aware route generator")
+	root.set_meta("source", "hidden gameplay route")
 	root.set_meta("road_sample_count", path_points.size())
 	root.set_meta("road_length", path.curve.get_baked_length())
-	root.set_meta("road_width_m", ROAD_WIDTH)
-	root.set_meta("target_max_grade", MAX_TARGET_GRADE)
-	root.set_meta("switchbacks", SWITCHBACK_COUNT)
+	root.set_meta("visual_mesh_generated", false)
 	return root
 
 
 static func _generate_route(sampler) -> Array[Vector3]:
-	var start: Vector3 = sampler.point_world_at(START_XZ.x, START_XZ.y, ROAD_OFFSET)
-	var goal: Vector3 = sampler.point_world_at(GOAL_XZ.x, GOAL_XZ.y, ROAD_OFFSET)
-
-	var start_2d := Vector2(start.x, start.z)
-	var goal_2d := Vector2(goal.x, goal.z)
-	var delta := goal_2d - start_2d
-	var direct_length := maxf(delta.length(), 1.0)
-	var forward := delta.normalized()
-	var lateral := Vector2(-forward.y, forward.x)
-
-	# Build a true bridge-to-gate serpentine. The endpoints are exact; only the
-	# middle of the road swings sideways. This prevents the old "hook" that
-	# stopped beside the castle and failed to meet the bridge.
-	var rise := absf(goal.y - start.y)
-	var turns := clampi(roundi(rise / 28.0), 3, 5)
-	var amplitude := clampf(rise * 1.35, 85.0, 170.0)
-	var estimated_length := direct_length + float(turns) * amplitude * 3.5
-	var samples := maxi(180, ceili(estimated_length / SAMPLE_SPACING))
-
 	var points: Array[Vector3] = []
-	for i in range(samples + 1):
-		var t := float(i) / float(samples)
-		var base := start_2d.lerp(goal_2d, t)
-		var envelope := sin(PI * t)
-		var phase := TAU * float(turns) * t
-		var swing := sin(phase) * amplitude * envelope
-		var p := base + lateral * swing
-		points.append(sampler.point_world_at(p.x, p.y, ROAD_OFFSET))
 
-	# Force exact contact with the wooden bridge and the castle east portal.
-	points[0] = start
-	points[-1] = goal
+	# Approach + full bridge crossing. Keep enemies at a fixed bridge-deck height
+	# so they cannot sink into the river or terrain while crossing.
+	var bridge_steps := maxi(2, ceili(absf(BRIDGE_SOUTH_Z - BRIDGE_NORTH_Z) / SAMPLE_SPACING))
+	for i in range(bridge_steps + 1):
+		var t := float(i) / float(bridge_steps)
+		var z := lerpf(BRIDGE_SOUTH_Z, BRIDGE_NORTH_Z, t)
+		points.append(Vector3(BRIDGE_X, BRIDGE_DECK_Y, z))
+
+	# Short, broad approach from the bridge to the east-side castle gate.
+	# It is invisible; these anchors are for movement only, not for drawing a road.
+	var anchors := [
+		Vector2(BRIDGE_X, BRIDGE_NORTH_Z),
+		Vector2(2268.0, 4935.0),
+		Vector2(2288.0, 4865.0),
+		Vector2(2318.0, 4800.0),
+		GOAL_XZ
+	]
+	for a in range(anchors.size() - 1):
+		var from: Vector2 = anchors[a]
+		var to: Vector2 = anchors[a + 1]
+		var segment_len := from.distance_to(to)
+		var steps := maxi(1, ceili(segment_len / SAMPLE_SPACING))
+		for i in range(1, steps + 1):
+			var t := float(i) / float(steps)
+			var p := from.lerp(to, t)
+			points.append(sampler.point_world_at(p.x, p.y, ROAD_OFFSET))
+
 	return _dedupe(points)
-
 
 
 static func _dedupe(points: Array[Vector3]) -> Array[Vector3]:
@@ -106,64 +89,3 @@ static func _dedupe(points: Array[Vector3]) -> Array[Vector3]:
 		if result.is_empty() or result[-1].distance_to(point) > 0.25:
 			result.append(point)
 	return result
-
-
-static func _build_road_mesh(points: Array[Vector3], sampler) -> ArrayMesh:
-	var vertices := PackedVector3Array()
-	var normals := PackedVector3Array()
-	var uvs := PackedVector2Array()
-	var indices := PackedInt32Array()
-	var half_width := ROAD_WIDTH * 0.5
-	var distance_along := 0.0
-
-	for i in range(points.size()):
-		var prev := points[maxi(i - 1, 0)]
-		var next := points[mini(i + 1, points.size() - 1)]
-		var tangent := Vector2(next.x - prev.x, next.z - prev.z).normalized()
-		if tangent.length_squared() < 0.001:
-			tangent = Vector2(0.0, -1.0)
-		var right := Vector2(-tangent.y, tangent.x)
-
-		if i > 0:
-			distance_along += points[i - 1].distance_to(points[i])
-
-		var left_xz := Vector2(points[i].x, points[i].z) - right * half_width
-		var right_xz := Vector2(points[i].x, points[i].z) + right * half_width
-		var left: Vector3 = sampler.point_world_at(left_xz.x, left_xz.y, ROAD_OFFSET)
-		var right_point: Vector3 = sampler.point_world_at(right_xz.x, right_xz.y, ROAD_OFFSET)
-
-		vertices.append(left)
-		vertices.append(right_point)
-		normals.append(Vector3.UP)
-		normals.append(Vector3.UP)
-		uvs.append(Vector2(0.0, distance_along / 5.0))
-		uvs.append(Vector2(1.0, distance_along / 5.0))
-
-	for i in range(points.size() - 1):
-		var base := i * 2
-		indices.append(base)
-		indices.append(base + 2)
-		indices.append(base + 1)
-		indices.append(base + 1)
-		indices.append(base + 2)
-		indices.append(base + 3)
-
-	var arrays := []
-	arrays.resize(Mesh.ARRAY_MAX)
-	arrays[Mesh.ARRAY_VERTEX] = vertices
-	arrays[Mesh.ARRAY_NORMAL] = normals
-	arrays[Mesh.ARRAY_TEX_UV] = uvs
-	arrays[Mesh.ARRAY_INDEX] = indices
-
-	var mesh := ArrayMesh.new()
-	mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
-	return mesh
-
-
-static func _road_material() -> StandardMaterial3D:
-	var material := StandardMaterial3D.new()
-	material.albedo_color = Color("#716b5d")
-	material.roughness = 0.96
-	material.metallic = 0.0
-	material.cull_mode = BaseMaterial3D.CULL_DISABLED
-	return material
