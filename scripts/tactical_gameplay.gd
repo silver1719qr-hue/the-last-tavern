@@ -78,7 +78,7 @@ func _build_tower_sites() -> void:
 	]
 	for i in range(positions.size()):
 		var p: Vector2 = positions[i]
-		var y := sampler.height_world_at(p.x, p.y) + 0.65
+		var y: float = float(sampler.height_world_at(p.x, p.y)) + 0.65
 		var root := Node3D.new()
 		root.name = "TowerSite_%02d" % (i + 1)
 		root.global_position = Vector3(p.x, y, p.y)
