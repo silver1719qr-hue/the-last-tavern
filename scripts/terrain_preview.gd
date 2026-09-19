@@ -1,9 +1,6 @@
 extends Node3D
 
 const CastleModels = preload("res://scripts/castle_models.gd")
-const SiegeRoute = preload("res://scripts/siege_route.gd")
-const CastleAnchorDebug = preload("res://scripts/castle_anchor_debug.gd")
-const CastleFortifications = preload("res://scripts/castle_fortifications.gd")
 const TerrainSurface = preload("res://scripts/terrain_surface.gd")
 
 @onready var terrain_root: Node3D = $BratislavaRealTerrain
@@ -38,25 +35,25 @@ func _ready() -> void:
 
 	var stats := {"mesh": 0, "hidden": 0, "terrain": 0, "water": 0, "castle": 0}
 	_prepare_meshes(terrain_root, stats)
-	var anchor_review_active := false
+
+	# CLEAN BASELINE: only the real terrain/water plus the two landmark castles.
+	# Road, walls, gates, tower slots, anchors, enemies and gameplay are preserved
+	# in the repository but are not instantiated in this scene.
 	if DisplayServer.get_name() != "headless":
-		# Keep Bratislava Castle visible as the fixed destination/reference.
-		# Walls, gates and towers stay disabled until road/anchor placement is correct.
 		var surface_sampler := TerrainSurface.new(terrain_root)
-		var castle := CastleModels.build_bratislava(self)
-		# The terrain is vertically exaggerated ×1.6 for review, while the castle
-		# model was authored at the original DEM elevation. Re-anchor the castle
-		# to the DISPLAYED terrain height so it cannot be buried under the hill.
-		castle.global_position.y = surface_sampler.height_world_at(2260.8, 4704.0) + 0.6
-		SiegeRoute.build(self, terrain_root)
-		CastleFortifications.build(self, terrain_root)
-		# Hide anchor numbers during route review; they were obscuring the road.
-		anchor_review_active = false
-		stats["castle"] = 1
+
+		var bratislava_castle := CastleModels.build_bratislava(self)
+		bratislava_castle.global_position.y = surface_sampler.height_world_at(2260.8, 4704.0) + 0.6
+
+		var devin_castle := CastleModels.build_devin(self)
+		devin_castle.global_position.y = surface_sampler.height_world_at(-6722.0, 1321.0) + 0.6
+
+		stats["castle"] = 2
+
 	_setup_environment()
 	_setup_landmark_labels()
 	_setup_overlay(stats)
-	set_road_review_view()
+	set_oblique_view()
 
 
 func _make_terrain_material() -> ShaderMaterial:
@@ -186,7 +183,7 @@ func _setup_overlay(stats: Dictionary) -> void:
 	box.add_child(title)
 
 	var status := Label.new()
-	status.text = "ROAD + FORTIFICATION REVIEW\nContinuous route + terrain-fitted enclosure + MAIN GATE facing the river\nAnchor numbers hidden for clarity\n19.3 × 18.9 km | relief ×%.1f | real DEM/OSM\nTerrain: %d | water: %d | castles shown: %d" % [
+	status.text = "CLEAN BASELINE — TERRAIN + LANDMARK CASTLES ONLY\nNo road / walls / gates / towers / anchors / enemies\n19.3 × 18.9 km | relief ×%.1f | real DEM/OSM\nTerrain: %d | water: %d | castles shown: %d" % [
 		VERTICAL_REVIEW_SCALE, stats["terrain"], stats["water"], stats["castle"]
 	]
 	status.add_theme_font_size_override("font_size", 11)
@@ -204,7 +201,7 @@ func _setup_overlay(stats: Dictionary) -> void:
 	buttons.add_child(top_button)
 
 	var help := Label.new()
-	help.text = "Mouse/WASD • 1 Castle • 2 Devín • 3 Danube • 4 Morava • 5 road • 6 castle anchors"
+	help.text = "Mouse/WASD • 1 Bratislava Castle • 2 Devín • 3 Danube • 4 Morava • T top • R overview"
 	help.add_theme_font_size_override("font_size", 11)
 	box.add_child(help)
 
