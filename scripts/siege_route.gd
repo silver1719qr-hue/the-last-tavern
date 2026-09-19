@@ -64,8 +64,8 @@ static func build(parent: Node3D, terrain_root: Node3D, create_visuals: bool = t
 
 
 static func _generate_route(sampler) -> Array[Vector3]:
-	var start := sampler.point_world_at(START_XZ.x, START_XZ.y, ROAD_OFFSET)
-	var goal := sampler.point_world_at(GOAL_XZ.x, GOAL_XZ.y, ROAD_OFFSET)
+	var start: Vector3 = sampler.point_world_at(START_XZ.x, START_XZ.y, ROAD_OFFSET)
+	var goal: Vector3 = sampler.point_world_at(GOAL_XZ.x, GOAL_XZ.y, ROAD_OFFSET)
 
 	var start_2d := Vector2(start.x, start.z)
 	var goal_2d := Vector2(goal.x, goal.z)
@@ -150,8 +150,8 @@ static func _build_road_mesh(points: Array[Vector3], sampler) -> ArrayMesh:
 
 		var left_xz := Vector2(points[i].x, points[i].z) - right * half_width
 		var right_xz := Vector2(points[i].x, points[i].z) + right * half_width
-		var left := sampler.point_world_at(left_xz.x, left_xz.y, ROAD_OFFSET)
-		var right_point := sampler.point_world_at(right_xz.x, right_xz.y, ROAD_OFFSET)
+		var left: Vector3 = sampler.point_world_at(left_xz.x, left_xz.y, ROAD_OFFSET)
+		var right_point: Vector3 = sampler.point_world_at(right_xz.x, right_xz.y, ROAD_OFFSET)
 
 		vertices.append(left)
 		vertices.append(right_point)
