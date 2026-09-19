@@ -23,54 +23,42 @@ func _run_validation() -> void:
 	var route := SiegeRoute.build(scene, terrain_root, false)
 	var path := route.get_node_or_null("EnemyPath3D") as Path3D
 	if path == null:
-		_fail("Automatic navigation Path3D is missing")
+		_fail("Hidden enemy Path3D is missing")
 		return
 	if path.curve.point_count < 100:
-		_fail("Automatic route sampling is too sparse")
+		_fail("Hidden route sampling is too sparse")
 		return
 
 	var points := path.curve.get_baked_points()
 	if points.size() < 100:
-		_fail("Baked automatic route is too sparse")
+		_fail("Baked hidden route is too sparse")
 		return
 
 	var max_gap := 0.0
-	var max_grade := 0.0
 	for i in range(points.size() - 1):
-		var a := points[i]
-		var b := points[i + 1]
-		var horizontal := Vector2(a.x, a.z).distance_to(Vector2(b.x, b.z))
-		max_gap = maxf(max_gap, a.distance_to(b))
-		if horizontal > 0.01:
-			max_grade = maxf(max_grade, absf(b.y - a.y) / horizontal)
+		max_gap = maxf(max_gap, points[i].distance_to(points[i + 1]))
 
 	if max_gap > 8.0:
-		_fail("A gap exists in the automatic route samples")
+		_fail("A gap exists in the hidden route samples")
 		return
-	if path.curve.get_baked_length() < 900.0:
-		_fail("Automatic road is too short to form a useful switchback route")
+	if path.curve.get_baked_length() < 650.0:
+		_fail("Hidden bridge-to-castle route is unexpectedly short")
 		return
-	if route.get_meta("source", "") != "automatic terrain-aware route generator":
+	if route.get_meta("source", "") != "hidden gameplay route":
 		_fail("Route source metadata is incorrect")
 		return
-	if int(route.get_meta("switchbacks", 0)) < 4:
-		_fail("Automatic road does not contain enough switchbacks")
-		return
 	if not route.find_children("*", "MeshInstance3D", true, false).is_empty():
-		_fail("Validation build(false) must not create a visual road mesh")
+		_fail("Hidden gameplay route must not generate a visible road mesh")
 		return
 
 	print(
-		"SIEGE_ROUTE_VALIDATION_OK source=automatic samples=",
+		"SIEGE_ROUTE_VALIDATION_OK source=hidden samples=",
 		path.curve.point_count,
 		" length=",
 		snappedf(path.curve.get_baked_length(), 0.1),
 		" max_gap=",
 		snappedf(max_gap, 0.01),
-		" max_local_grade=",
-		snappedf(max_grade, 0.001),
-		" switchbacks=",
-		route.get_meta("switchbacks")
+		" visible_road_meshes=0"
 	)
 	scene.free()
 	quit(0)
