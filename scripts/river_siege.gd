@@ -90,9 +90,7 @@ func setup(terrain_root: Node3D, active_camera: Camera3D) -> void:
 	var route_root := build_route(self)
 	route_curve = (route_root.get_node("InvaderShipPath3D") as Path3D).curve
 	_build_fortified_embankment()
-	_build_hud()
 	_spawn_initial_fleet()
-	_update_hud()
 
 
 func _process(delta: float) -> void:
