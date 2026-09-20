@@ -57,7 +57,7 @@ func _ready() -> void:
 	var river_siege := RiverSiege.new()
 	river_siege.name = "RiverSiege"
 	add_child(river_siege)
-	river_siege.setup(terrain_root)
+	river_siege.setup(terrain_root, camera)
 
 	stats["castle"] = 2
 	stats["road"] = 1
