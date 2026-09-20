@@ -63,8 +63,6 @@ func _ready() -> void:
 	stats["road"] = 1
 
 	_setup_environment()
-	_setup_landmark_labels()
-	_setup_overlay(stats)
 	set_road_review_view()
 
 
@@ -149,73 +147,6 @@ func _setup_environment() -> void:
 	env.reflected_light_source = Environment.REFLECTION_SOURCE_DISABLED
 	env.tonemap_mode = Environment.TONE_MAPPER_FILMIC
 	$WorldEnvironment.environment = env
-
-
-func _setup_landmark_labels() -> void:
-	_add_label("• Devín Castle", Vector3(-6722.0, 180.0, 1321.0))
-	_add_label("• Morava → Danube", Vector3(-6930.0, 120.0, 930.0))
-	_add_label("• Bratislava Castle", Vector3(2260.0, 240.0, 4700.0))
-	_add_label("• Staré Mesto", Vector3(3180.0, 120.0, 4480.0))
-	_add_label("• Petržalka", Vector3(2600.0, 92.0, 8100.0))
-	_add_label("• Kamzík", Vector3(1830.0, 735.0, 250.0))
-	_add_label("• Little Carpathians", Vector3(2300.0, 600.0, -3600.0))
-	_add_label("• Danube", Vector3(-700.0, 105.0, 5900.0))
-
-
-func _add_label(text_value: String, world_position: Vector3) -> void:
-	var label := Label3D.new()
-	label.text = text_value
-	label.position = world_position
-	label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
-	label.fixed_size = true
-	label.font_size = 11
-	label.outline_size = 2
-	label.modulate = Color(1.0, 0.96, 0.78, 0.9)
-	label.outline_modulate = Color(0.02, 0.025, 0.03, 0.82)
-	label.no_depth_test = false
-	add_child(label)
-
-
-func _setup_overlay(stats: Dictionary) -> void:
-	var layer := CanvasLayer.new()
-	add_child(layer)
-
-	var panel := PanelContainer.new()
-	panel.position = Vector2(14, 14)
-	panel.custom_minimum_size = Vector2(430, 0)
-	layer.add_child(panel)
-
-	var box := VBoxContainer.new()
-	box.add_theme_constant_override("separation", 8)
-	panel.add_child(box)
-
-	var title := Label.new()
-	title.text = "BRATISLAVA — REAL DEM / OSM TERRAIN"
-	title.add_theme_font_size_override("font_size", 16)
-	box.add_child(title)
-
-	var status := Label.new()
-	status.text = "RIVER SIEGE — DEVÍN → BRATISLAVA\nInvader ships follow the Danube toward the fortified riverfront\n19.3 × 18.9 km | relief ×%.1f | real DEM/OSM\nTerrain: %d | water: %d | castles: %d | river route: %d" % [
-		VERTICAL_REVIEW_SCALE, stats["terrain"], stats["water"], stats["castle"], stats["road"]
-	]
-	status.add_theme_font_size_override("font_size", 11)
-	box.add_child(status)
-
-	var buttons := HBoxContainer.new()
-	box.add_child(buttons)
-	var oblique_button := Button.new()
-	oblique_button.text = "OBLIQUE VIEW (R)"
-	oblique_button.pressed.connect(set_oblique_view)
-	buttons.add_child(oblique_button)
-	var top_button := Button.new()
-	top_button.text = "TOP VIEW (T)"
-	top_button.pressed.connect(set_top_view)
-	buttons.add_child(top_button)
-
-	var help := Label.new()
-	help.text = "Mouse/WASD • 1 Castle • 2 Devín • 5 defense • 6 full river • 7 fleet • T top • R region"
-	help.add_theme_font_size_override("font_size", 11)
-	box.add_child(help)
 
 
 func set_oblique_view() -> void:
