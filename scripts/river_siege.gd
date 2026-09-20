@@ -6,9 +6,12 @@ const WALL_SCENE: PackedScene = preload("res://assets/kenney/pirate/castle-wall.
 const TOWER_SCENE: PackedScene = preload("res://assets/kenney/pirate/tower-watch.glb")
 const CANNON_SCENE: PackedScene = preload("res://assets/kenney/pirate/cannon.glb")
 
-const SHIP_SCALE := 4.2
-const SHIP_SPEED := 46.0
 const MAX_SHIPS := 7
+const SHIP_CLASSES := [
+	{"kind": "scout", "scale": 3.35, "speed": 59.0, "hp": 90.0, "reward": 45, "flag": Color("#d7bd75")},
+	{"kind": "raider", "scale": 4.2, "speed": 46.0, "hp": 155.0, "reward": 75, "flag": Color("#b23e35")},
+	{"kind": "flagship", "scale": 5.35, "speed": 34.0, "hp": 285.0, "reward": 125, "flag": Color("#342951")}
+]
 
 var route_curve: Curve3D
 var ships: Array[Dictionary] = []
@@ -90,6 +93,7 @@ func setup(terrain_root: Node3D, active_camera: Camera3D) -> void:
 	var route_root := build_route(self)
 	route_curve = (route_root.get_node("InvaderShipPath3D") as Path3D).curve
 	_build_fortified_embankment()
+	_build_harbor_details()
 	_spawn_initial_fleet()
 
 
@@ -113,29 +117,52 @@ func _unhandled_input(event: InputEvent) -> void:
 func _spawn_initial_fleet() -> void:
 	var length := route_curve.get_baked_length()
 	var progresses := [0.0, length * 0.44, length * 0.66, length * 0.78, length * 0.86, length * 0.92, length * 0.96]
-	for progress in progresses:
-		_spawn_ship(float(progress))
+	var classes := [0, 1, 0, 2, 1, 0, 1]
+	for i in range(progresses.size()):
+		_spawn_ship(float(progresses[i]), int(classes[i]))
 
 
-func _spawn_ship(progress: float) -> void:
+func _spawn_ship(progress: float, class_index: int = -1) -> void:
+	if class_index < 0:
+		class_index = (next_ship_id - 1) % SHIP_CLASSES.size()
+	var class_data: Dictionary = SHIP_CLASSES[class_index]
 	var ship := SHIP_SCENE.instantiate() as Node3D
 	ship.name = "InvaderShip_%02d" % next_ship_id
-	ship.scale = Vector3.ONE * SHIP_SCALE
+	ship.scale = Vector3.ONE * float(class_data["scale"])
 	add_child(ship)
+	_configure_ship_variant(ship, class_data)
 
 	var bar := _make_health_bar()
 	bar.name = "ShipHealth_%02d" % next_ship_id
 	add_child(bar)
 
-	var max_hp := 140.0 + float((next_ship_id - 1) % 4) * 25.0
+	var max_hp := float(class_data["hp"])
 	ships.append({
 		"root": ship, "bar": bar, "progress": progress,
-		"speed": SHIP_SPEED * (0.94 + float(next_ship_id % 3) * 0.04),
-		"hp": max_hp, "max_hp": max_hp, "id": next_ship_id
+		"speed": float(class_data["speed"]), "hp": max_hp, "max_hp": max_hp,
+		"reward": int(class_data["reward"]), "class_index": class_index, "id": next_ship_id
 	})
 	next_ship_id += 1
 	_place_ship(ships[-1])
 	_update_health_bar(ships[-1])
+
+
+func _configure_ship_variant(ship: Node3D, class_data: Dictionary) -> void:
+	var kind := str(class_data["kind"])
+	var flags := ship.find_children("*flag*", "MeshInstance3D", true, false)
+	for i in range(flags.size()):
+		var flag := flags[i] as MeshInstance3D
+		flag.visible = not (kind == "scout" and i > 0)
+		if flag.visible:
+			var flag_material := StandardMaterial3D.new()
+			flag_material.albedo_color = class_data["flag"]
+			flag_material.roughness = 0.82
+			flag.material_override = flag_material
+	if kind == "scout":
+		for sail in ship.find_children("*sail-b*", "MeshInstance3D", true, false):
+			(sail as MeshInstance3D).visible = false
+	elif kind == "flagship":
+		_add_beacon(ship, Vector3(0.0, 14.0, -2.0), Color("#ffb54a"), 7.0)
 
 
 func _place_ship(ship_data: Dictionary) -> void:
@@ -232,6 +259,69 @@ func _build_fortified_embankment() -> void:
 		_build_battery(i, p)
 
 
+func _build_harbor_details() -> void:
+	var piers := [
+		{"x": 800.0, "z": 4785.0}, {"x": 1400.0, "z": 4955.0}, {"x": 2000.0, "z": 5088.0}
+	]
+	for pier_data in piers:
+		var x := float(pier_data["x"])
+		var z := float(pier_data["z"])
+		_add_box(self, Vector3(x, 41.0, z), Vector3(42.0, 5.0, 125.0), Color("#594027"))
+		for side in [-1.0, 1.0]:
+			for offset in [-45.0, 0.0, 45.0]:
+				_add_box(self, Vector3(x + side * 18.0, 33.0, z + offset), Vector3(5.0, 18.0, 5.0), Color("#34281f"))
+		_add_crates(Vector3(x, 49.0, z - 42.0))
+	for x in [2100.0, 2220.0]:
+		var tower := TOWER_SCENE.instantiate() as Node3D
+		tower.name = "HarborGateTower"
+		tower.scale = Vector3.ONE * 7.2
+		add_child(tower)
+		tower.global_position = Vector3(x, float(sampler.height_world_at(x, 5050.0)) + 7.0, 5050.0)
+		_add_beacon(tower, Vector3(0.0, 12.0, 0.0), Color("#ff8a32"), 13.0)
+
+
+func _add_crates(position: Vector3) -> void:
+	_add_box(self, position, Vector3(12.0, 10.0, 12.0), Color("#755132"))
+	_add_box(self, position + Vector3(11.0, -1.0, 3.0), Vector3(9.0, 8.0, 9.0), Color("#62442d"))
+	_add_box(self, position + Vector3(4.0, 8.5, 2.0), Vector3(8.0, 7.0, 8.0), Color("#80603a"))
+
+
+func _add_box(parent: Node3D, position: Vector3, size: Vector3, color: Color) -> MeshInstance3D:
+	var instance := MeshInstance3D.new()
+	var mesh := BoxMesh.new()
+	mesh.size = size
+	instance.mesh = mesh
+	instance.position = position
+	var material := StandardMaterial3D.new()
+	material.albedo_color = color
+	material.roughness = 0.92
+	instance.material_override = material
+	parent.add_child(instance)
+	return instance
+
+
+func _add_beacon(parent: Node3D, position: Vector3, color: Color, light_range: float) -> void:
+	var flame := MeshInstance3D.new()
+	var sphere := SphereMesh.new()
+	sphere.radius = 1.25
+	sphere.height = 2.5
+	flame.mesh = sphere
+	flame.position = position
+	var material := StandardMaterial3D.new()
+	material.albedo_color = color
+	material.emission_enabled = true
+	material.emission = color
+	material.emission_energy_multiplier = 3.0
+	flame.material_override = material
+	parent.add_child(flame)
+	var light := OmniLight3D.new()
+	light.position = position
+	light.light_color = color
+	light.light_energy = 2.2
+	light.omni_range = light_range
+	parent.add_child(light)
+
+
 func _build_battery(index: int, p: Vector2) -> void:
 	var ground: float = float(sampler.height_world_at(p.x, p.y))
 	var root := Node3D.new()
@@ -302,6 +392,14 @@ func _upgrade_battery(index: int) -> void:
 	var cannon_root := battery["cannon_root"] as Node3D
 	var offsets := [-9.0, 9.0, -18.0, 18.0]
 	_add_cannon(cannon_root, Vector3(offsets[level - 2], 4.4, 18.0))
+	if level == 3:
+		_add_beacon(root, Vector3(0.0, 41.0, 0.0), Color("#ff9f43"), 24.0)
+	elif level == 5:
+		var reinforcement := WALL_SCENE.instantiate() as Node3D
+		reinforcement.name = "BatteryReinforcement"
+		reinforcement.scale = Vector3.ONE * 4.2
+		reinforcement.position = Vector3(0.0, 2.5, -14.0)
+		root.add_child(reinforcement)
 	batteries[index] = battery
 	_show_message("Battery %d upgraded to level %d — damage %d" % [index + 1, level, 28 + level * 18])
 	_update_hud()
@@ -417,9 +515,9 @@ func _destroy_ship(index: int) -> void:
 	var ship := ship_data["root"] as Node3D
 	_create_explosion(ship.global_position + Vector3(0.0, 10.0, 0.0))
 	destroyed += 1
-	gold += 75
+	gold += int(ship_data["reward"])
 	_remove_ship(index, true)
-	_show_message("Ship destroyed — +75 gold")
+	_show_message("Ship destroyed")
 	_update_hud()
 
 
