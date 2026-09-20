@@ -1,11 +1,13 @@
-THE LAST TAVERN 3D — Bratislava terrain review
+THE LAST TAVERN 3D — Devín to Bratislava river siege
 
 Current build purpose:
-- Review the real Bratislava DEM/OSM terrain and Blender-authored castle road.
-- No player, enemies, towers, procedural hills, or gameplay are active.
+- Preview the new river-defense direction on the real Bratislava DEM/OSM terrain.
+- Invader ships sail from Devín downstream toward Bratislava.
+- A stone embankment, watchtowers and cannon batteries defend the city riverfront.
+- Ships and cannon fire are animated; there is no hero in this review build.
 - The source scene is Bratislava_Real_Terrain_Godot4.glb.
-- The visible road is assets/world/bratislava_castle_road.glb; Godot does not
-  generate or rebuild its mesh at runtime.
+- The former land route remains in the repository but is not shown or used in
+  this river-siege review scene.
 
 Visible geography:
 - Danube and Morava confluence near Devin
@@ -29,7 +31,9 @@ Review controls:
 - 2 — close view of restored Devin Castle
 - 3 — close view of the Danube pontoon bridge
 - 4 — close view of the Morava bridge near Devin
-- 5 — overview of the continuous Blender road from south bank to castle gate
+- 5 — close view of Bratislava's fortified riverfront
+- 6 — full river route from Devín to Bratislava
+- 7 — close fleet and cannon view
 
 The GLB remains at real horizontal scale (about 19.3 x 18.9 km). The review
 scene uses a clearly disclosed 1.6x vertical scale so the real ridges and

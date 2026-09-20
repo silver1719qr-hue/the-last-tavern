@@ -2,8 +2,7 @@ extends Node3D
 
 const CastleModels = preload("res://scripts/castle_models.gd")
 const TerrainSurface = preload("res://scripts/terrain_surface.gd")
-const SiegeRoute = preload("res://scripts/siege_route.gd")
-const TacticalGameplay = preload("res://scripts/tactical_gameplay.gd")
+const RiverSiege = preload("res://scripts/river_siege.gd")
 
 @onready var terrain_root: Node3D = $BratislavaRealTerrain
 @onready var camera: Camera3D = $Camera3D
@@ -43,8 +42,8 @@ func _ready() -> void:
 	var stats := {"mesh": 0, "hidden": 0, "terrain": 0, "water": 0, "castle": 0, "road": 0}
 	_prepare_meshes(terrain_root, stats)
 
-	# Review scene: real terrain/water, landmark castles, historical bridge and
-	# one automatically generated terrain-aware medieval road.
+	# Review scene: real terrain/water, landmark castles and the playable river
+	# siege corridor from Devín to the fortified Bratislava riverfront.
 	var surface_sampler := TerrainSurface.new(terrain_root)
 
 	var bratislava_castle := CastleModels.build_bratislava(self)
@@ -55,11 +54,10 @@ func _ready() -> void:
 
 	CastleModels.build_historical_bridges(self)
 
-	var route_root := SiegeRoute.build(self, terrain_root, false)
-	var tactical := TacticalGameplay.new()
-	tactical.name = "TacticalGameplay"
-	add_child(tactical)
-	tactical.setup(terrain_root, route_root, camera)
+	var river_siege := RiverSiege.new()
+	river_siege.name = "RiverSiege"
+	add_child(river_siege)
+	river_siege.setup(terrain_root)
 
 	stats["castle"] = 2
 	stats["road"] = 1
@@ -197,7 +195,7 @@ func _setup_overlay(stats: Dictionary) -> void:
 	box.add_child(title)
 
 	var status := Label.new()
-	status.text = "TACTICAL DEFENSE TEST — NO VISIBLE ROAD\nEnemies use a hidden bridge-to-castle route\n19.3 × 18.9 km | relief ×%.1f | real DEM/OSM\nTerrain: %d | water: %d | castles: %d | road: %d" % [
+	status.text = "RIVER SIEGE — DEVÍN → BRATISLAVA\nInvader ships follow the Danube toward the fortified riverfront\n19.3 × 18.9 km | relief ×%.1f | real DEM/OSM\nTerrain: %d | water: %d | castles: %d | river route: %d" % [
 		VERTICAL_REVIEW_SCALE, stats["terrain"], stats["water"], stats["castle"], stats["road"]
 	]
 	status.add_theme_font_size_override("font_size", 11)
@@ -215,7 +213,7 @@ func _setup_overlay(stats: Dictionary) -> void:
 	buttons.add_child(top_button)
 
 	var help := Label.new()
-	help.text = "Mouse/WASD • 1 Castle • 2 Devín • 3 Danube • 4 Morava • 5 road • T top • R region"
+	help.text = "Mouse/WASD • 1 Castle • 2 Devín • 5 defense • 6 full river • 7 fleet • T top • R region"
 	help.add_theme_font_size_override("font_size", 11)
 	box.add_child(help)
 
@@ -237,11 +235,27 @@ func set_top_view() -> void:
 
 
 func set_road_review_view() -> void:
-	# Whole approved bridge-to-castle serpentine in one frame.
-	focus = Vector3(2480.0, 145.0, 5020.0)
-	distance = 1750.0
-	yaw = deg_to_rad(-2.0)
-	pitch = deg_to_rad(-80.0)
+	# Close, readable view of the fortified Bratislava riverfront.
+	focus = Vector3(1390.0, 105.0, 5040.0)
+	distance = 2500.0
+	yaw = deg_to_rad(-18.0)
+	pitch = deg_to_rad(-54.0)
+	_update_camera()
+
+
+func set_full_river_view() -> void:
+	focus = Vector3(-2200.0, 160.0, 3400.0)
+	distance = 10800.0
+	yaw = deg_to_rad(-26.0)
+	pitch = deg_to_rad(-63.0)
+	_update_camera()
+
+
+func set_fleet_view() -> void:
+	focus = Vector3(1550.0, 65.0, 5200.0)
+	distance = 1350.0
+	yaw = deg_to_rad(-34.0)
+	pitch = deg_to_rad(-31.0)
 	_update_camera()
 
 
@@ -312,6 +326,10 @@ func _unhandled_input(event: InputEvent) -> void:
 			_update_camera()
 		elif event.keycode == KEY_5:
 			set_road_review_view()
+		elif event.keycode == KEY_6:
+			set_full_river_view()
+		elif event.keycode == KEY_7:
+			set_fleet_view()
 
 
 func _process(delta: float) -> void:

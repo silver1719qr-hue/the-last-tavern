@@ -67,6 +67,18 @@ jobs:
             exit 1
           fi
 
+      - name: Validate Devín to Bratislava river siege
+        run: |
+          godot --headless --path . --script scripts/validate_river_siege.gd > river-siege-validation.log 2>&1
+          status=$?
+          cat river-siege-validation.log
+          [ $status -eq 0 ]
+          grep -F "RIVER_SIEGE_VALIDATION_OK" river-siege-validation.log
+          if grep -Ei "SCRIPT ERROR|Parse Error|Failed to load script|ERROR:" river-siege-validation.log; then
+            echo "River siege validation contains errors."
+            exit 1
+          fi
+
       - name: Validate Blender-authored road asset
         run: |
           godot --headless --path . --script scripts/validate_blender_road.gd > blender-road-validation.log 2>&1
