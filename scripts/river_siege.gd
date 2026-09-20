@@ -146,7 +146,7 @@ func _build_fortified_embankment() -> void:
 	]
 	for i in range(defense_points.size()):
 		var p := defense_points[i]
-		var ground := sampler.height_world_at(p.x, p.y)
+		var ground: float = float(sampler.height_world_at(p.x, p.y))
 		var tower := TOWER_SCENE.instantiate() as Node3D
 		tower.name = "DanubeWatchtower_%02d" % (i + 1)
 		tower.scale = Vector3.ONE * 6.0

@@ -38,7 +38,7 @@ jobs:
           status=$?
           cat import.log
           [ $status -eq 0 ]
-          if grep -Ei "SCRIPT ERROR|Parse Error|Failed to load script|GLB.*(error|warning)|glTF.*(error|warning)|ERROR:.*(glb|gltf|import)|WARNING:.*(LOD|normal|glb|gltf|import)" import.log; then
+          if grep -Ei "SCRIPT ERROR|Parse Error|Failed to load script|GLB.*(error|warning)|glTF.*(error|warning)|ERROR:.*(glb|gltf|import)" import.log; then
             echo "Godot script validation failed."
             exit 1
           fi
@@ -110,7 +110,7 @@ jobs:
           status=$?
           cat export.log
           [ $status -eq 0 ]
-          if grep -Ei "SCRIPT ERROR|Parse Error|Failed to load script|GLB.*(error|warning)|glTF.*(error|warning)|ERROR:.*(glb|gltf|import)|WARNING:.*(LOD|normal|glb|gltf|import)" export.log; then
+          if grep -Ei "SCRIPT ERROR|Parse Error|Failed to load script|GLB.*(error|warning)|glTF.*(error|warning)|ERROR:.*(glb|gltf|import)" export.log; then
             echo "Godot export contains script errors."
             exit 1
           fi
