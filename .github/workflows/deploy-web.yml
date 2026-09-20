@@ -2,7 +2,7 @@ name: Build and deploy Godot Web
 
 on:
   push:
-    branches: ["main"]
+    branches: ["main", "river-siege-prototype"]
   workflow_dispatch:
 
 permissions:
@@ -22,6 +22,18 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+
+      - name: Download Kenney river-siege prototype assets
+        if: github.ref == 'refs/heads/river-siege-prototype'
+        run: |
+          mkdir -p "assets/kenney/pirate/Textures"
+          curl -L --fail -o "assets/kenney/pirate/ship-pirate-large.glb" "https://raw.githubusercontent.com/shorepine/kenney/main/3d/pirate/ship-pirate-large.glb"
+          curl -L --fail -o "assets/kenney/pirate/cannon.glb" "https://raw.githubusercontent.com/shorepine/kenney/main/3d/pirate/cannon.glb"
+          curl -L --fail -o "assets/kenney/pirate/castle-wall.glb" "https://raw.githubusercontent.com/shorepine/kenney/main/3d/pirate/castle-wall.glb"
+          curl -L --fail -o "assets/kenney/pirate/tower-watch.glb" "https://raw.githubusercontent.com/shorepine/kenney/main/3d/pirate/tower-watch.glb"
+          curl -L --fail -o "assets/kenney/pirate/Textures/colormap.png" "https://raw.githubusercontent.com/shorepine/kenney/main/3d/pirate/Textures/colormap.png"
+          test -s "assets/kenney/pirate/ship-pirate-large.glb"
+          test -s "assets/kenney/pirate/Textures/colormap.png"
 
       - name: Prepare Godot export templates
         run: |
