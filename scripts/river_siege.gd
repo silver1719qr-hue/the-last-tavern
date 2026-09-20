@@ -125,13 +125,8 @@ func _spawn_ship(progress: float) -> void:
 	ship.scale = Vector3.ONE * SHIP_SCALE
 	add_child(ship)
 
-	var bar := Label3D.new()
+	var bar := _make_health_bar()
 	bar.name = "ShipHealth_%02d" % next_ship_id
-	bar.billboard = BaseMaterial3D.BILLBOARD_ENABLED
-	bar.fixed_size = true
-	bar.font_size = 18
-	bar.outline_size = 5
-	bar.no_depth_test = true
 	add_child(bar)
 
 	var max_hp := 140.0 + float((next_ship_id - 1) % 4) * 25.0
@@ -147,7 +142,7 @@ func _spawn_ship(progress: float) -> void:
 
 func _place_ship(ship_data: Dictionary) -> void:
 	var ship := ship_data["root"] as Node3D
-	var bar := ship_data["bar"] as Label3D
+	var bar := ship_data["bar"] as Node3D
 	var progress := float(ship_data["progress"])
 	var length := route_curve.get_baked_length()
 	var p := route_curve.sample_baked(clampf(progress, 0.0, length), true)
@@ -157,6 +152,37 @@ func _place_ship(ship_data: Dictionary) -> void:
 		ship.look_at(ahead, Vector3.UP)
 		ship.rotate_y(PI)
 	bar.global_position = p + Vector3(0.0, 55.0, 0.0)
+	if camera != null:
+		bar.look_at(camera.global_position, Vector3.UP)
+
+
+func _make_health_bar() -> Node3D:
+	var root := Node3D.new()
+	var background := MeshInstance3D.new()
+	background.name = "Background"
+	var background_mesh := BoxMesh.new()
+	background_mesh.size = Vector3(32.0, 4.0, 1.0)
+	background.mesh = background_mesh
+	background.material_override = _bar_material(Color("#211f1f"))
+	root.add_child(background)
+
+	var fill := MeshInstance3D.new()
+	fill.name = "Fill"
+	var fill_mesh := BoxMesh.new()
+	fill_mesh.size = Vector3(28.0, 2.4, 1.3)
+	fill.mesh = fill_mesh
+	fill.position.z = -0.25
+	fill.material_override = _bar_material(Color("#74ff72"))
+	root.add_child(fill)
+	root.set_meta("fill", fill)
+	return root
+
+
+func _bar_material(color: Color) -> StandardMaterial3D:
+	var material := StandardMaterial3D.new()
+	material.albedo_color = color
+	material.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	return material
 
 
 func _update_ships(delta: float) -> void:
@@ -226,22 +252,9 @@ func _build_battery(index: int, p: Vector2) -> void:
 	root.add_child(cannon_root)
 	_add_cannon(cannon_root, Vector3(0.0, 4.4, 18.0))
 
-	var level_label := Label3D.new()
-	level_label.name = "UpgradeLabel"
-	level_label.text = "BATTERY LV 1\nCLICK TO UPGRADE"
-	level_label.position = Vector3(0.0, 30.0, 0.0)
-	level_label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
-	level_label.fixed_size = true
-	level_label.font_size = 14
-	level_label.outline_size = 4
-	level_label.no_depth_test = true
-	level_label.modulate = Color("#ffe091")
-	root.add_child(level_label)
-
 	batteries.append({
 		"root": root, "tower": tower, "cannon_root": cannon_root,
-		"label": level_label, "level": 1,
-		"cooldown": 0.4 + float(index) * 0.18
+		"level": 1, "cooldown": 0.4 + float(index) * 0.18
 	})
 
 
@@ -291,11 +304,8 @@ func _upgrade_battery(index: int) -> void:
 	var cannon_root := battery["cannon_root"] as Node3D
 	var offsets := [-9.0, 9.0, -18.0, 18.0]
 	_add_cannon(cannon_root, Vector3(offsets[level - 2], 4.4, 18.0))
-	var label := battery["label"] as Label3D
-	label.text = "BATTERY LV %d\nDAMAGE %d" % [level, 28 + level * 18]
-	label.modulate = Color("#9dff9d")
 	batteries[index] = battery
-	_show_message("Battery upgraded to level %d" % level)
+	_show_message("Battery %d upgraded to level %d — damage %d" % [index + 1, level, 28 + level * 18])
 	_update_hud()
 
 
@@ -389,21 +399,19 @@ func _damage_ship(target: Node3D, damage: float) -> void:
 
 
 func _update_health_bar(ship_data: Dictionary) -> void:
-	var bar := ship_data["bar"] as Label3D
+	var bar := ship_data["bar"] as Node3D
 	if not is_instance_valid(bar):
 		return
 	var ratio := clampf(float(ship_data["hp"]) / float(ship_data["max_hp"]), 0.0, 1.0)
-	var filled := int(round(ratio * 10.0))
-	bar.text = "SHIP %d  %d%%\n%s%s" % [
-		int(ship_data["id"]), int(round(ratio * 100.0)),
-		"█".repeat(filled), "░".repeat(10 - filled)
-	]
+	var fill := bar.get_meta("fill") as MeshInstance3D
+	fill.scale.x = ratio
+	fill.position.x = -14.0 + 14.0 * ratio
 	if ratio > 0.6:
-		bar.modulate = Color("#74ff72")
+		fill.material_override = _bar_material(Color("#74ff72"))
 	elif ratio > 0.3:
-		bar.modulate = Color("#ffd25f")
+		fill.material_override = _bar_material(Color("#ffd25f"))
 	else:
-		bar.modulate = Color("#ff665e")
+		fill.material_override = _bar_material(Color("#ff665e"))
 
 
 func _destroy_ship(index: int) -> void:
@@ -420,7 +428,7 @@ func _destroy_ship(index: int) -> void:
 func _remove_ship(index: int, was_destroyed: bool) -> void:
 	var ship_data: Dictionary = ships[index]
 	var ship := ship_data["root"] as Node3D
-	var bar := ship_data["bar"] as Label3D
+	var bar := ship_data["bar"] as Node3D
 	if is_instance_valid(ship):
 		ship.queue_free()
 	if is_instance_valid(bar):
