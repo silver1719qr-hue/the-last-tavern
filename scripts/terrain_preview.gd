@@ -3,7 +3,7 @@ extends Node3D
 const CastleModels = preload("res://scripts/castle_models.gd")
 const TerrainSurface = preload("res://scripts/terrain_surface.gd")
 const SiegeRoute = preload("res://scripts/siege_route.gd")
-const TacticalGameplay = preload("res://scripts/tactical_gameplay.gd")
+const TacticalGameplay = preload("res://scripts/tactical_gameplay.gd")\nconst RiverSiegePreview = preload("res://scripts/river_siege_preview.gd")
 
 @onready var terrain_root: Node3D = $BratislavaRealTerrain
 @onready var camera: Camera3D = $Camera3D
@@ -40,7 +40,7 @@ func _ready() -> void:
 		elif node is Camera3D:
 			node.current = false
 
-	var stats := {"mesh": 0, "hidden": 0, "terrain": 0, "water": 0, "castle": 0, "road": 0}
+	var stats := {"mesh": 0, "hidden": 0, "terrain": 0, "water": 0, "castle": 0, "road": 0, "river": 0}
 	_prepare_meshes(terrain_root, stats)
 
 	# Review scene: real terrain/water, landmark castles, historical bridge and
@@ -67,7 +67,7 @@ func _ready() -> void:
 	_setup_environment()
 	_setup_landmark_labels()
 	_setup_overlay(stats)
-	set_road_review_view()
+	set_river_siege_view()
 
 
 func _make_terrain_material() -> ShaderMaterial:
@@ -215,7 +215,7 @@ func _setup_overlay(stats: Dictionary) -> void:
 	buttons.add_child(top_button)
 
 	var help := Label.new()
-	help.text = "Mouse/WASD • 1 Castle • 2 Devín • 3 Danube • 4 Morava • 5 road • T top • R region"
+	help.text = "Mouse/WASD • 1 Castle • 2 Devín • 3 Danube • 4 Morava • 5 river siege • T top • R region"
 	help.add_theme_font_size_override("font_size", 11)
 	box.add_child(help)
 
@@ -236,8 +236,18 @@ func set_top_view() -> void:
 	_update_camera()
 
 
+func set_river_siege_view() -> void:
+	# Focus on the Bratislava river-defense sector: ships, stone quay,
+	# Petržalka fire posts and the enemy landing dock.
+	focus = Vector3(1700.0, 70.0, 5520.0)
+	distance = 2450.0
+	yaw = deg_to_rad(-34.0)
+	pitch = deg_to_rad(-39.0)
+	_update_camera()
+
+
 func set_road_review_view() -> void:
-	# Whole approved bridge-to-castle serpentine in one frame.
+	# Kept for development reference; the new gameplay direction is river-first.
 	focus = Vector3(2480.0, 145.0, 5020.0)
 	distance = 1750.0
 	yaw = deg_to_rad(-2.0)
