@@ -387,6 +387,7 @@ func _upgrade_battery(index: int) -> void:
 	gold -= cost
 	level += 1
 	battery["level"] = level
+	var root := battery["root"] as Node3D
 	var tower := battery["tower"] as Node3D
 	tower.scale = Vector3.ONE * (6.0 + float(level - 1) * 0.55)
 	var cannon_root := battery["cannon_root"] as Node3D
